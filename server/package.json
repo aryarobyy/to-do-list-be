@@ -1,0 +1,40 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "src/main.ts",
+  "author": "aryarobyy",
+  "license": "ISC",
+  "description": "",
+  "scripts": {
+    "build": "tsc",
+    "serve": "node dist/index.js",
+    "start": "nodemon"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.14.0",
+    "express": "^5.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.5.0",
+    "firebase": "^11.6.0",
+    "firebase-admin": "^13.2.0",
+    "i": "^0.3.7",
+    "jsonwebtoken": "^9.0.2",
+    "nodemon": "^3.1.9",
+    "uuid": "^11.1.0"
+  },
+  "nodemonConfig": {
+    "watch": [
+      "src"
+    ],
+    "ext": "ts",
+    "ignore": [
+      "src/**/*.spec.ts"
+    ],
+    "exec": "ts-node ./src/main.ts"
+  }
+}
