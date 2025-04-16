@@ -1,8 +1,2 @@
 /node_modules
-<<<<<<< HEAD
-/src/firebase/admin.sdk.json
-/src/controllers
-=======
->>>>>>> db2ef45 (Fixing my mistake ignoring controllers)
-
 .env
