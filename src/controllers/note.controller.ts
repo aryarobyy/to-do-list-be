@@ -1,47 +1,63 @@
 import { NextFunction, Response, Request } from 'express';
 import { v4 } from 'uuid';
 import { errorRes, successRes } from '../utils/response';
-import { collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 import { admin, adminFirestore } from '../firebase/admin.sdk';
 
 const NOTES_COLLECTION = 'notes'
 const NOTE_COLLECTION = 'note'
-const firestore = getFirestore();
+
+enum noteStatus {
+    ACTIVE = "ACTIVE",
+    DEACTIVE = "DEACTIVE",
+}
+
 
 export const postNote = async (
     req: Request,
     res: Response,
     next: NextFunction
 ): Promise<void> =>{
-    const { created_by, title, content, status, priority, tags, collaborators, deadline, reminder, image, link, created_at, update_at } = req.body;
+    const { createdBy, updatedBy, title, content, status, priority, tags, collaborators, deadline, reminder, image, link, subTasks } = req.body;
     try{
         const id = v4();
+
+        const validSubTasks = Array.isArray(subTasks) //pengecekan array
+        ? subTasks.map((t) => ({
+            text: t.text || "",
+            isDone: !!t.isDone,
+            isBold: !!t.isBold
+        }))
+        : [];
+
+        const isValidStatus = (status: any): status is noteStatus =>
+            Object.values(noteStatus).includes(status);
+        
+        const finalStatus = isValidStatus(status) ? status : noteStatus.ACTIVE;
+
         //sementara segini dulu
         const data = {
             id,
-            createdBy: created_by,
+            createdBy,
             title,
             content,
-            // status,
-            createdAt: created_at || serverTimestamp(),
-            updatedAt: update_at || serverTimestamp()
+            status : finalStatus,
+            tags: Array.isArray(tags) ? tags : [], //harus auto capital semua
+            subTasks: validSubTasks ?? [],
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }
-
-        // const creatorRef = doc(firestore, NOTES_COLLECTION, created_by);
-        // const noteRef = doc(collection(creatorRef, NOTE_COLLECTION), id);
-        // await setDoc(noteRef, data)
 
         await adminFirestore
             .collection(NOTES_COLLECTION)
-            .doc(created_by)
+            .doc(createdBy)
             .collection(NOTE_COLLECTION)
             .doc(id)
             .set(data)
-
-        
+            
         const storedSnap = await adminFirestore
             .collection(NOTES_COLLECTION)
-            .doc(created_by)
+            .doc(createdBy)
             .collection(NOTE_COLLECTION)
             .doc(id)
             .get()
@@ -63,29 +79,29 @@ export const updateNote = async (
     res: Response,
     next: NextFunction
 ): Promise<void> =>{
-    const { id } = req.params;
-    const { title, content, created_by, update_at } = req.body
+    const { noteId } = req.params;
+    const { title, content, createdBy, status, subTasks, createdAt, updatedBy } = req.body
     try{
-        if (!created_by) {
+        if (!createdBy) {
             throw new Error("Creator is required");
         }
         const data: Record<string, any> = {};
         
-        if (title !== undefined) data.title = title;
-        if (content !== undefined) data.content = content;
-        if (update_at !== undefined) {
-            data.updatedAt = update_at;
-        } else {
-            data.updatedAt = serverTimestamp(); 
-        }
+        if (title != null) data.title = title;
+        if (content != null) data.content = content;
+        if (status != null) data.status = status;
+        if (updatedBy != null) data.updatedBy = updatedBy;
+        if (subTasks != null) data.subTasks = subTasks;
+        if (createdAt != null) data.createdAt = createdAt;
+        data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
         const noteRef = adminFirestore
-        .collection(NOTES_COLLECTION)
-        .doc(created_by)
-        .collection(NOTE_COLLECTION)
-        .doc(id);
+            .collection(NOTES_COLLECTION)
+            .doc(createdBy)
+            .collection(NOTE_COLLECTION)
+            .doc(noteId);
 
-        await noteRef.set(data);
+        await noteRef.update(data);
         successRes(res, 200, { data }, "  successful");
     } catch (e: any) {
         console.error("Error in :", e);
@@ -98,14 +114,16 @@ export const getNoteById = async (
     res: Response,
     next: NextFunction): Promise<void> =>{
     try{
-        const { id } = req.params
+        const { creatorId, noteId } = req.params
 
         const noteSnap = await adminFirestore
+        .collection(NOTES_COLLECTION)
+        .doc(creatorId)
         .collection(NOTE_COLLECTION)
-        .doc(id)
+        .doc(noteId)
         .get()
         if (!noteSnap.exists) {
-            errorRes(res, 404, "User not found");
+            errorRes(res, 404, "Note not found");
             return;
         }
     
@@ -146,16 +164,16 @@ export const getNotesByCreator = async (
 };
 
 export const getNotesByTags = async (
-req: Request,
-res: Response,
-next: NextFunction
+    req: Request,
+    res: Response,
+    next: NextFunction
 ): Promise<void> => {
 try {
     const { creatorId } = req.params;
     const { tags } = req.body;
 
     if (!Array.isArray(tags) || tags.length === 0) {
-    throw new Error("Tags must be a non-empty array");
+        throw new Error("Tags must be a non-empty array");
     }
 
     const notesRef = adminFirestore
