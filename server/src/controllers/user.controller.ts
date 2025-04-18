@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { getFirestore, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { getAuth, createUserWithEmailAndPassword, UserCredential, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, setDoc, doc, getDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import bcrypt from 'bcryptjs';
 import { errorRes, successRes } from '../utils/response';
+import { admin, adminFirestore } from '../firebase/admin.sdk';
 
 const firestore = getFirestore();
 const auth = getAuth();
@@ -20,7 +21,7 @@ export const registerUser = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { email, name, password, img_url, last_active } = req.body;
+  const { email, name, password, img_url, last_active, username } = req.body;
 
   if (!email || !password) {
     errorRes(res, 400, "Email and password are required");
@@ -31,35 +32,45 @@ export const registerUser = async (
     errorRes(res, 400, "Invalid email format");
     return;
   }  
-  const querySnapshot = await getDoc(doc(firestore, USER_COLLECTION, email))
+  const querySnapshot = await admin.firestore().collection(USER_COLLECTION).doc(email).get();
 
-  if(querySnapshot.exists()) {
-    res.json("Email Already Exists")
+  if (querySnapshot.exists) {
+    res.status(400).json({ message: "Email Already Exists" });
     return;
   }
 
   try {
-    const usercredential: UserCredential = await createUserWithEmailAndPassword(
-      auth,
-      email, 
-      password
-    );
+    const userRec = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name || "",
+      // photoURL: img_url || "",
+    });
 
-    const id = usercredential.user.uid;
+    const id = userRec.uid;
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
     const userData = {
       id,
       name: name || "",
+      username: username,
       email,
       image: img_url || "",
       last_active: last_active || new Date().toISOString(),
-      createdAt: serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    await setDoc(doc(firestore, USER_COLLECTION, id), userData);
+    await adminFirestore
+      .collection(USER_COLLECTION)
+      .doc(id)
+      .set(userData);
 
-    const storedSnap = await getDoc(doc(firestore, USER_COLLECTION, id));
-    if (!storedSnap.exists()) {
+    const storedSnap = await adminFirestore
+        .collection(USER_COLLECTION)
+        .doc(id)
+        .get();
+    
+    if (!storedSnap.exists) {
       console.warn(`User document ${id} not found after setDoc.`);
     } else {
       console.log("Data successfully stored in Firestore:", storedSnap.data());
@@ -90,11 +101,12 @@ export const loginUser = async  (
   }  
 
   try{
-    const auth = getAuth();
-    const usercredential: UserCredential = await signInWithEmailAndPassword(auth, email, password)
+    const userRec = await signInWithEmailAndPassword(auth, email, password);
+    const token = await userRec.user.getIdToken();
+
+    const userVerify = await admin.auth().verifyIdToken(token);
     
-    const id = usercredential.user.uid
-    const userDoc = await getDoc(doc(firestore, USER_COLLECTION, id))
+    const userDoc = await getDoc(doc(firestore, USER_COLLECTION, userVerify.uid))
 
     if (!userDoc.exists()) {
       errorRes(res, 404, "User data not found in Firestore");
@@ -109,13 +121,54 @@ export const loginUser = async  (
   }
 }
 
+export const updateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> =>{
+  const { id } = req.params;
+  const updatedData  = req.body;
+  try{
+    const userRec = adminFirestore
+      .collection(USER_COLLECTION)
+      .doc(id)
+
+    const snapshot = await userRec.get();
+    
+    if (!snapshot.exists) {
+      errorRes(res, 404, "User not found");
+      return;
+    }
+      
+    await userRec.update(updatedData);
+    const updatedUser = await userRec.get();
+
+    successRes(
+      res,
+      200,
+      { userData: updatedUser.data() },
+      "User update successful"
+    );
+  } catch (e: any) {
+    console.error("Error in :", e);
+    errorRes(res, 500, "Error ", e.message);
+  }
+}
+
 export const getUserById = async (
   req: Request,
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
       const { id } = req.params
-      const userData = await getDoc(doc(firestore, USER_COLLECTION, id))
+      const userSnap = await adminFirestore.collection(USER_COLLECTION).doc(id).get();
+
+      if (!userSnap.exists) {
+        errorRes(res, 404, "User not found");
+        return;
+      }
+  
+      const userData = userSnap.data();
       successRes(res, 200, { userData }, "Getting user successful");
     } catch (e: any) {
       console.error("Wrong userId:", e);
@@ -129,7 +182,16 @@ export const getUserByEmail = async (
   next: NextFunction): Promise<void> =>{
     try{
       const { email } = req.params
-      const userData = await getDoc(doc(firestore, USER_COLLECTION, email))
+      const userSnap = await adminFirestore.collection(USER_COLLECTION).where("email", "==", email).get();
+      if (userSnap.empty) {
+        errorRes(res, 404, "User not found");
+        return;
+      }
+      const userData = userSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+  
       successRes(res, 200, { userData }, "Getting user successful");
     } catch (e: any) {
       console.error("Wrong email:", e);
@@ -143,7 +205,16 @@ export const getUserByUsername = async (
   next: NextFunction): Promise<void> =>{
     try{
       const { username } = req.params
-      const userData = await getDoc(doc(firestore, USER_COLLECTION, username))
+      const userSnap = await adminFirestore.collection(USER_COLLECTION).where("username", "==", username).get();
+      if (userSnap.empty) {
+        errorRes(res, 404, "User not found");
+        return;
+      }
+      const userData = userSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+  
       successRes(res, 200, { userData }, "Getting user successful");
     } catch (e: any) {
       console.error("Wrong username:", e);

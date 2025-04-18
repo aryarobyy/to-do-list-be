@@ -1,8 +1,10 @@
-import '../src/firebase/firebase.config';
 import express, { Request, Response } from 'express';
+import './firebase/admin.sdk';
+import './firebase/firebase.config'
 import dotenv from 'dotenv';
 import userRouter from './routes/user.route';
 import noteRouter from './routes/note.route';
+import { initSocket } from './socket';
 
 dotenv.config();
 
