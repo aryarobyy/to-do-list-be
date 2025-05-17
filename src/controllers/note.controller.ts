@@ -151,12 +151,12 @@ export const getNotesByCreator = async (
 
     const snapshot = await notesRef.get();
 
-    const notes = snapshot.docs.map((doc) => ({
+    const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
     }));
 
-    successRes(res, 200, { notes }, "Getting notes successful");
+    successRes(res, 200, { data }, "Getting notes successful");
     } catch (e: any) {
         console.error("Error getting notes by creator:", e);
         errorRes(res, 500, "Error getting notes", e.message);
@@ -184,12 +184,12 @@ try {
     const notesQuery = notesRef.where('tags', 'array-contains-any', tags);
     const snapshot = await notesQuery.get();
 
-    const notes = snapshot.docs.map((doc) => ({
+    const data = snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data()
     }));
 
-    successRes(res, 200, { notes }, "Getting notes by tags successful");
+    successRes(res, 200, { data }, "Getting notes by tags successful");
 } catch (e: any) {
     console.error("Error getting notes by tags:", e);
     errorRes(res, 500, "Error getting notes by tags", e.message);
