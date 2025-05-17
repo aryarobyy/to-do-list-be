@@ -1,15 +1,10 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "/src/main.ts", 
-      "use": "@vercel/node"
-    }
-  ],
+  "devCommand": "ts-node src/main.ts",
+  "listen": 3001,
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/src/main.ts"  
-    }
+    { "src": "/socket.io/(.*)", "dest": "http://localhost:4000/socket.io/$1" },
+    { "src": "/user(.*)",      "dest": "http://localhost:4000/user$1" },
+    { "src": "/note(.*)",      "dest": "http://localhost:4000/note$1" },
+    { "src": "/(.*)",          "dest": "/$1" }
   ]
 }
