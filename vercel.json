@@ -1,6 +1,5 @@
 {
   "devCommand": "ts-node src/main.ts",
-  "listen": 3001,
   "routes": [
     { "src": "/socket.io/(.*)", "dest": "http://localhost:4000/socket.io/$1" },
     { "src": "/user(.*)",      "dest": "http://localhost:4000/user$1" },
