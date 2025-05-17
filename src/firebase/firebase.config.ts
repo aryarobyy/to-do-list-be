@@ -3,7 +3,6 @@ import { getAnalytics, isSupported } from "firebase/analytics";
 import * as dotenv from "dotenv";
 
 dotenv.config();
-console.log("saasadsda",process.env.MEASUREMENT_ID)
 
 const firebaseConfig = {
   apiKey: process.env.API_KEY,

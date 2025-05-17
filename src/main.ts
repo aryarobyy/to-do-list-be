@@ -6,7 +6,8 @@ import userRouter from './routes/user.route';
 import noteRouter from './routes/note.route';
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { initSocket } from './socket';
+// import { initSocket } from './socket';
+import path from 'path';
 
 dotenv.config();
 
@@ -24,11 +25,13 @@ const io = new Server(httpServer, {
   connectionStateRecovery: {}
 });
 
-initSocket(io);
+// initSocket(io);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Hello World!');
 });
+
+app.use(express.static(path.join(__dirname, "public")));
 
 app.use('/user', userRouter)
 app.use('/note', noteRouter)
