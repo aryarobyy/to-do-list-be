@@ -1,9 +1,18 @@
 {
-  "devCommand": "ts-node src/main.ts",
-  "routes": [
-    { "src": "/socket.io/(.*)", "dest": "http://localhost:4000/socket.io/$1" },
-    { "src": "/user(.*)",      "dest": "http://localhost:4000/user$1" },
-    { "src": "/note(.*)",      "dest": "http://localhost:4000/note$1" },
-    { "src": "/(.*)",          "dest": "/$1" }
+  "version": 2,
+  "devCommand": "cross-env PORT=4000 ts-node src/main.ts",
+  "rewrites": [
+    {
+      "source": "/socket.io/:path*",
+      "destination": "http://localhost:4000/socket.io/:path*"
+    },
+    {
+      "source": "/user/:path*",
+      "destination": "http://localhost:4000/user/:path*"
+    },
+    {
+      "source": "/note/:path*",
+      "destination": "http://localhost:4000/note/:path*"
+    }
   ]
 }

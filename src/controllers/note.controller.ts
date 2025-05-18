@@ -1,11 +1,10 @@
 import { NextFunction, Response, Request } from 'express';
 import { v4 } from 'uuid';
 import { errorRes, successRes } from '../utils/response';
-import { serverTimestamp } from 'firebase/firestore';
 import { admin, adminFirestore } from '../firebase/admin.sdk';
 
+const USER_COLLECTION = 'users'
 const NOTES_COLLECTION = 'notes'
-const NOTE_COLLECTION = 'note'
 
 enum noteStatus {
     ACTIVE = "ACTIVE",
@@ -48,17 +47,26 @@ export const postNote = async (
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }
 
+        const creator = adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(USER_COLLECTION)
+            .get();
+
+        if(creator == null){
+            throw "Unknown creator";
+        }
+
         await adminFirestore
-            .collection(NOTES_COLLECTION)
+            .collection(USER_COLLECTION)
             .doc(createdBy)
-            .collection(NOTE_COLLECTION)
+            .collection(NOTES_COLLECTION)
             .doc(id)
             .set(data)
             
         const storedSnap = await adminFirestore
-            .collection(NOTES_COLLECTION)
+            .collection(USER_COLLECTION)
             .doc(createdBy)
-            .collection(NOTE_COLLECTION)
+            .collection(NOTES_COLLECTION)
             .doc(id)
             .get()
 
@@ -96,9 +104,9 @@ export const updateNote = async (
         data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
         const noteRef = adminFirestore
-            .collection(NOTES_COLLECTION)
+            .collection(USER_COLLECTION)
             .doc(createdBy)
-            .collection(NOTE_COLLECTION)
+            .collection(NOTES_COLLECTION)
             .doc(noteId);
 
         await noteRef.update(data);
@@ -117,9 +125,9 @@ export const getNoteById = async (
         const { creatorId, noteId } = req.params
 
         const noteSnap = await adminFirestore
-        .collection(NOTES_COLLECTION)
+        .collection(USER_COLLECTION)
         .doc(creatorId)
-        .collection(NOTE_COLLECTION)
+        .collection(NOTES_COLLECTION)
         .doc(noteId)
         .get()
         if (!noteSnap.exists) {
@@ -127,9 +135,9 @@ export const getNoteById = async (
             return;
         }
     
-        const noteData = noteSnap.data();
+        const data = noteSnap.data();
 
-        successRes(res, 200, { noteData }, "Getting note successful");
+        successRes(res, 200, { data }, "Getting note successful");
     } catch (e: any) {
         console.error("Wrong noteId:", e);
         errorRes(res, 500, "Error noteId", e.message);
@@ -144,14 +152,13 @@ export const getNotesByCreator = async (
     try {
     const { creatorId } = req.params;
 
-    const notesRef = adminFirestore
-        .collection(NOTES_COLLECTION)
+    const notesRef = await adminFirestore
+        .collection(USER_COLLECTION)
         .doc(creatorId)
-        .collection(NOTE_COLLECTION)
+        .collection(NOTES_COLLECTION)
+        .get();
 
-    const snapshot = await notesRef.get();
-
-    const data = snapshot.docs.map((doc) => ({
+    const data = notesRef.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
     }));
@@ -168,30 +175,39 @@ export const getNotesByTags = async (
     res: Response,
     next: NextFunction
 ): Promise<void> => {
-try {
-    const { creatorId } = req.params;
-    const { tags } = req.body;
+    try {
+        const { creatorId } = req.params;
+        const { tags } = req.body;
 
-    if (!Array.isArray(tags) || tags.length === 0) {
-        throw new Error("Tags must be a non-empty array");
+        if (!Array.isArray(tags) || tags.length === 0) {
+            errorRes(res, 400, "Tags must be a non-empty array");
+        }
+
+        const creatorDoc = await adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(creatorId)
+            .get();
+        if (!creatorDoc.exists) {
+            errorRes(res, 404, "User not found");
+        }
+
+        const notesRef = adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(creatorId)
+            .collection(NOTES_COLLECTION);
+
+        const snapshot = await notesRef
+            .where('tags', 'array-contains-any', tags)
+            .get();
+
+        const data = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+
+        successRes(res, 200, { data }, "Getting notes successful");
+    } catch (e: any) {
+        console.error("Error getting notes by tags:", e);
+        errorRes(res, 500, "Internal server error", e.message);
     }
-
-    const notesRef = adminFirestore
-    .collection(NOTES_COLLECTION)
-    .doc(creatorId)
-    .collection(NOTE_COLLECTION);
-
-    const notesQuery = notesRef.where('tags', 'array-contains-any', tags);
-    const snapshot = await notesQuery.get();
-
-    const data = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data()
-    }));
-
-    successRes(res, 200, { data }, "Getting notes by tags successful");
-} catch (e: any) {
-    console.error("Error getting notes by tags:", e);
-    errorRes(res, 500, "Error getting notes by tags", e.message);
-}
 };

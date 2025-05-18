@@ -13,7 +13,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
