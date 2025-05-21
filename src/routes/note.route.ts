@@ -4,9 +4,9 @@ import { getNoteById, getNotesByCreator, getNotesByTags, postNote, updateNote } 
 const noteRouter = Router()
 
 noteRouter.post('/', postNote)
-noteRouter.put('/update/:noteId', updateNote)
+noteRouter.put('/:noteId', updateNote)
 noteRouter.get('/:creatorId/:noteId', getNoteById)
-noteRouter.get('/creator/:creatorId', getNotesByCreator)
-noteRouter.post('/tags/:creatorId', getNotesByTags);
+noteRouter.get('/:creatorId', getNotesByCreator)    
+noteRouter.post('/tags', getNotesByTags);
 
 export default noteRouter

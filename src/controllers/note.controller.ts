@@ -11,15 +11,23 @@ enum noteStatus {
     DEACTIVE = "DEACTIVE",
 }
 
-
 export const postNote = async (
     req: Request,
     res: Response,
     next: NextFunction
 ): Promise<void> =>{
-    const { createdBy, updatedBy, title, content, status, priority, tags, collaborators, deadline, reminder, image, link, subTasks } = req.body;
+    const { creatorId, schedule = '', updatedBy, title, content = '', status, priority, tags = [], collaborators, deadline, reminder, image, link, subTasks = [] } = req.body;
     try{
         const id = v4();
+
+        const creatorSnap = await adminFirestore
+        .collection(USER_COLLECTION)
+        .doc(creatorId)
+        .get();
+
+        if (!creatorSnap.exists) {
+        throw new Error(`Unknown creator: ${creatorId}`);
+        }
 
         const validSubTasks = Array.isArray(subTasks) //pengecekan array
         ? subTasks.map((t) => ({
@@ -34,47 +42,42 @@ export const postNote = async (
         
         const finalStatus = isValidStatus(status) ? status : noteStatus.ACTIVE;
 
+        const formattedTags = Array.isArray(tags)
+            ? tags.map((tag) => tag.toUpperCase())
+            : [];
         //sementara segini dulu
         const data = {
             id,
-            createdBy,
+            creatorId,
             title,
             content,
+            schedule,
             status : finalStatus,
-            tags: Array.isArray(tags) ? tags : [], //harus auto capital semua
-            subTasks: validSubTasks ?? [],
+            tags: formattedTags, //harus auto capital semua
+            subTasks: validSubTasks,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }
 
-        const creator = adminFirestore
-            .collection(USER_COLLECTION)
-            .doc(USER_COLLECTION)
-            .get();
-
-        if(creator == null){
-            throw "Unknown creator";
-        }
-
         await adminFirestore
             .collection(USER_COLLECTION)
-            .doc(createdBy)
+            .doc(creatorId)
             .collection(NOTES_COLLECTION)
             .doc(id)
             .set(data)
             
         const storedSnap = await adminFirestore
             .collection(USER_COLLECTION)
-            .doc(createdBy)
+            .doc(creatorId)
             .collection(NOTES_COLLECTION)
             .doc(id)
             .get()
 
         if (!storedSnap.exists) {
-                console.warn(`User document ${id} not found after setDoc.`);
-            } else {
-                console.log("Data successfully stored in Firestore:", storedSnap.data());
-            }
+            console.warn(`Note document ${id} not found after setDoc.`);
+        } else {
+            console.log("Data successfully stored in Firestore:", storedSnap.data());
+        }
         successRes(res, 200, { data }, "Notes created successful");
     } catch (e: any) {
         console.error("Error in :", e);
@@ -88,15 +91,26 @@ export const updateNote = async (
     next: NextFunction
 ): Promise<void> =>{
     const { noteId } = req.params;
-    const { title, content, createdBy, status, subTasks, createdAt, updatedBy } = req.body
+    const { title, content, creatorId, status, subTasks, createdAt, updatedBy, schedule } = req.body
     try{
-        if (!createdBy) {
+        if (!creatorId) {
             throw new Error("Creator is required");
         }
+
+        const creatorSnap = await adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(creatorId)
+            .get();
+
+        if (!creatorSnap.exists) {
+        throw new Error(`Unknown creator: ${creatorId}`);
+        }
+
         const data: Record<string, any> = {};
         
         if (title != null) data.title = title;
         if (content != null) data.content = content;
+        if (schedule != null) data.schedule = schedule;
         if (status != null) data.status = status;
         if (updatedBy != null) data.updatedBy = updatedBy;
         if (subTasks != null) data.subTasks = subTasks;
@@ -105,7 +119,7 @@ export const updateNote = async (
 
         const noteRef = adminFirestore
             .collection(USER_COLLECTION)
-            .doc(createdBy)
+            .doc(creatorId)
             .collection(NOTES_COLLECTION)
             .doc(noteId);
 
@@ -124,6 +138,15 @@ export const getNoteById = async (
     try{
         const { creatorId, noteId } = req.params
 
+        const creatorSnap = await adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(creatorId)
+            .get();
+
+        if (!creatorSnap.exists) {
+        throw new Error(`Unknown creator: ${creatorId}`);
+        }
+
         const noteSnap = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(creatorId)
@@ -140,7 +163,7 @@ export const getNoteById = async (
         successRes(res, 200, { data }, "Getting note successful");
     } catch (e: any) {
         console.error("Wrong noteId:", e);
-        errorRes(res, 500, "Error noteId", e.message);
+        errorRes(res, 500, "Error getting note", e.message);
     }
 }
 
@@ -176,8 +199,7 @@ export const getNotesByTags = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { creatorId } = req.params;
-        const { tags } = req.body;
+        const { tags, creatorId } = req.body;
 
         if (!Array.isArray(tags) || tags.length === 0) {
             errorRes(res, 400, "Tags must be a non-empty array");

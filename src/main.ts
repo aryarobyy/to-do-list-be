@@ -8,6 +8,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { initSocket } from './socket';
 import path from 'path';
+import favRoute from './routes/fav.route';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use('/user', userRouter)
 app.use('/note', noteRouter)
+app.use('/fav', favRoute)
 
 httpServer.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
