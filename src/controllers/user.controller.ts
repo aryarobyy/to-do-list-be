@@ -113,9 +113,7 @@ export const loginUser = async  (
     const userRec = await signInWithEmailAndPassword(auth, email, password);
     const token = await userRec.user.getIdToken();
 
-    const userVerify = await admin.auth().verifyIdToken(token);
-    
-    const userDoc = await getDoc(doc(firestore, USER_COLLECTION, userVerify.uid))
+    const userDoc = await getDoc(doc(firestore, USER_COLLECTION, userRec.user.uid))
 
     if (!userDoc.exists()) {
       errorRes(res, 404, "User data not found in Firestore");
@@ -243,3 +241,75 @@ export const getCurrentUser = async (
       errorRes(res, 500, "Error getting current user", e.message);
   }
 }
+
+export const logout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> =>{
+  const { id } = req.body;
+  try {
+    const userRef = admin.firestore()
+      .collection(USER_COLLECTION)
+      .doc(id);
+
+    await userRef.update({
+      // isOnline: false,
+      lastActive: admin
+        .firestore
+        .FieldValue
+        .serverTimestamp(),
+    });
+
+    await admin.auth()
+      .revokeRefreshTokens(id);
+
+    successRes(res, 200, { userRef }, "Verify successful");
+  } catch (e: any) {
+    console.error('Logout error:', e);
+    errorRes(res, 500, "Logout failed", e.message);
+  }
+}
+
+export const verifyToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { token } = req.body;
+
+  if (!token) {
+    errorRes(res, 400, "No token provided");
+    return;
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (decodedToken.exp && decodedToken.exp < currentTime) {
+      errorRes(res, 401, "Token has expired. Please refresh your token.");
+      return;
+    }
+
+    (req as any).user = decodedToken;
+
+    next();
+  } catch (e: any) {
+    console.error("Token verification failed:", e);
+
+    switch (e.code) {
+      case "auth/id-token-expired":
+        errorRes(res, 401, "Token has expired. Please refresh the token.", e.message);
+        break;
+      case "auth/id-token-revoked":
+        errorRes(res, 401, "Token has been revoked. Please sign in again.", e.message);
+        break;
+      case "auth/invalid-id-token":
+        errorRes(res, 401, "Invalid token format.", e.message);
+        break;
+      default:
+        errorRes(res, 401, "Token verification failed.", e.message);
+    }
+  }
+};
