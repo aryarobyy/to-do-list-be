@@ -31,8 +31,8 @@ export const postFav = async (
 
         await favRef.set(
         {
-            title: titleFormat,
             noteId: admin.firestore.FieldValue.arrayUnion(...noteId),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
@@ -168,9 +168,7 @@ export const updateFav = async (
       await favRef.update({ noteId: [] });
     }
 
-    const updateData: Record<string, any> = {
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    const updateData: Record<string, any> = {};
 
     if (addNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayUnion(...addNoteId)
     if (removeNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayRemove(...removeNoteId)

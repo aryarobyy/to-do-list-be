@@ -6,7 +6,7 @@ const favRoute = Router();
 favRoute.post("/", postFav)
 favRoute.get("/:creatorId", getAllFav)
 favRoute.put("/", updateFav)
-favRoute.put("/category", updateFavCategory)
+favRoute.put("/title", updateFavCategory)
 favRoute.post("/title", getFavByTitle)
 
 export default favRoute

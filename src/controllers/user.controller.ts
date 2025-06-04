@@ -3,6 +3,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { authRes, errorRes, successRes } from '../utils/response';
 import { admin, adminFirestore } from '../firebase/admin.sdk';
+import { postFav, updateFav } from './favNote.controller';
 
 const firestore = getFirestore();
 const auth = getAuth();
@@ -67,16 +68,33 @@ export const registerUser = async (
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    await adminFirestore
+    const userRef = adminFirestore
       .collection(USER_COLLECTION)
       .doc(id)
+
+    await userRef
       .set(data);
 
     const storedSnap = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(id)
         .get();
-    
+
+    const title = [
+      "tomorrow",
+      "favourite"
+    ]
+
+    const favouriteCreationPromises = title.map(async (titleItem) => {
+      const favouriteDocRef = userRef.collection("favourite").doc(titleItem);
+      return favouriteDocRef.set({
+        noteId: [],    
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    await Promise.all(favouriteCreationPromises);
     if (!storedSnap.exists) {
       console.warn(`User document ${id} not found after setDoc.`);
     } else {
@@ -85,7 +103,7 @@ export const registerUser = async (
 
     const token = await admin.auth().createCustomToken(id);
 
-    authRes(res, 200, { data }, "User created successfully", token);
+    authRes(res, 200, { data, favouriteCreationPromises }, "User created successfully", token);
   } catch (e: any) {
     console.error("Error in register User:", e);
     errorRes(res, 500, "Error creating user", e.message);
