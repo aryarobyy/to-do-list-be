@@ -6,11 +6,10 @@
   "license": "ISC",
   "description": "",
   "scripts": {
-    "build": "tsc",
-    "serve": "node dist/index.js",
-    "dev": "ts-node src/main.ts",
-    "start": "nodemon"
-  },
+  "build": "tsc",
+  "start": "node dist/main.js",
+  "dev": "nodemon"
+},
   "devDependencies": {
     "@types/express": "^5.0.1",
     "@types/node": "^22.14.0",
