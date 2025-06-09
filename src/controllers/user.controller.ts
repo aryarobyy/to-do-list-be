@@ -36,6 +36,7 @@ export const registerUser = async (
     errorRes(res, 400, "Invalid email format");
     return;
   }  
+  
   const emailCheck = await admin
     .firestore()
     .collection(USER_COLLECTION)
@@ -70,22 +71,21 @@ export const registerUser = async (
 
     const userRef = adminFirestore
       .collection(USER_COLLECTION)
-      .doc(id)
+      .doc(id);
 
-    await userRef
-      .set(data);
+    await userRef.set(data);
 
     const storedSnap = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(id)
         .get();
 
-    const title = [
-      "tomorrow",
-      "favourite"
-    ]
+    const titles = [
+      "Tomorrow",
+      "Favourite"
+    ];
 
-    const favouriteCreationPromises = title.map(async (titleItem) => {
+    const favouriteCreationPromises = titles.map(async (titleItem) => {
       const favouriteDocRef = userRef.collection("favourite").doc(titleItem);
       return favouriteDocRef.set({
         noteId: [],    
@@ -95,6 +95,7 @@ export const registerUser = async (
     });
 
     await Promise.all(favouriteCreationPromises);
+    
     if (!storedSnap.exists) {
       console.warn(`User document ${id} not found after setDoc.`);
     } else {
@@ -103,7 +104,7 @@ export const registerUser = async (
 
     const token = await admin.auth().createCustomToken(id);
 
-    authRes(res, 200, { data, favouriteCreationPromises }, "User created successfully", token);
+    authRes(res, 200, { data }, "User created successfully", token);
   } catch (e: any) {
     console.error("Error in register User:", e);
     errorRes(res, 500, "Error creating user", e.message);

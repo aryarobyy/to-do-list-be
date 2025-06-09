@@ -31,9 +31,9 @@ export const postFav = async (
 
         await favRef.set(
         {
-            noteId: admin.firestore.FieldValue.arrayUnion(...noteId),
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          noteId: admin.firestore.FieldValue.arrayUnion(...noteId),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
         );
@@ -186,43 +186,45 @@ export const getFavByTitle = async (
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> =>{
-  try{
-      const { creatorId, title } = req.body
+): Promise<void> => {
+  try {
+    const { creatorId, title } = req.body;
 
-      if (!creatorId || !title) {
-        errorRes(res, 400, "creatorId or title is empty");
-        return
-      }
+    if (!creatorId || !title) {
+      errorRes(res, 400, "Missing required fields: 'creatorId' or 'title'");
+      return;
+    }
 
-      const creatorSnap = await adminFirestore
-          .collection(USER_COLLECTION)
-          .doc(creatorId)
-          .get();
+    const creatorRef = adminFirestore.collection(USER_COLLECTION).doc(creatorId);
+    const creatorSnap = await creatorRef.get();
 
-      if (!creatorSnap.exists) {
-        errorRes(res, 404, `Favorite '${creatorId}' not found`)
-        return
-      }
+    if (!creatorSnap.exists) {
+      errorRes(res, 404, `User with ID '${creatorId}' not found.`);
+      return;
+    }
 
-      const formattedTitle = titleHandler(title);    
-      const data = await adminFirestore
-          .collection(USER_COLLECTION)
-          .doc(creatorId)
-          .collection(FAV_COLLECTION)
-          .doc(formattedTitle)
-          .get();
+    const formattedTitle = titleHandler(title);
+    const favRef = creatorRef
+    .collection(FAV_COLLECTION)
+    .doc(formattedTitle);
+    const favSnap = await favRef.get();
 
-      if(!data.exists){
-        errorRes(res, 404, `Favorite '${formattedTitle}' not found`);
-      return
-      }
-      successRes(res, 200, { data }, "  successful");
-  } catch (e: any) {
-      console.error("Error in :", e);
-      errorRes(res, 500, "Error ", e.message);
+    if (!favSnap.exists) {
+      errorRes(res, 404, `Favorite item titled '${formattedTitle}' not found.`);
+      return;
+    }
+
+    const favDataWithId = {
+      id: favSnap.id,
+      ...favSnap.data()
+    };
+
+    successRes(res, 200, { data: favDataWithId }, "Favorite retrieved successfully.");
+  } catch (error: any) {
+    console.error("Error in getFavByTitle:", error);
+    errorRes(res, 500, "Internal server error", error.message);
   }
-}
+};
 
 const titleHandler = (title: string): string => {
   return title
