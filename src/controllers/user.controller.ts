@@ -82,19 +82,19 @@ export const registerUser = async (
 
     const titles = [
       "Tomorrow",
-      "Categoryourite"
+      "Category"
     ];
 
-    const categoryouriteCreationPromises = titles.map(async (titleItem) => {
-      const categoryouriteDocRef = userRef.collection("categoryourite").doc(titleItem);
-      return categoryouriteDocRef.set({
+    const categoryCreationPromises = titles.map(async (titleItem) => {
+      const categoryDocRef = userRef.collection("category").doc(titleItem);
+      return categoryDocRef.set({
         noteId: [],    
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     });
 
-    await Promise.all(categoryouriteCreationPromises);
+    await Promise.all(categoryCreationPromises);
     
     if (!storedSnap.exists) {
       console.warn(`User document ${id} not found after setDoc.`);

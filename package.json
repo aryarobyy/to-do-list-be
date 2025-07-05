@@ -7,7 +7,7 @@
   "description": "",
   "scripts": {
   "build": "tsc",
-  "start": "node dist/main.js",
+  "start": "nodemon ./main.ts",
   "dev": "nodemon"
 },
   "devDependencies": {

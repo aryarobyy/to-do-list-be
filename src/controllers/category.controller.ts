@@ -160,7 +160,7 @@ export const updateCategory = async (
     const categorySnap = await categoryRef.get();
 
     if (!categorySnap.exists) {
-      errorRes(res, 404, `Categoryorite '${formattedTitle}' not found`);
+      errorRes(res, 404, `Category '${formattedTitle}' not found`);
       return;
     }
 
@@ -175,10 +175,10 @@ export const updateCategory = async (
 
     await categoryRef.update(updateData);
 
-    successRes(res, 200, { data: updateData }, "Categoryorite updated successfully");
+    successRes(res, 200, { data: updateData }, "Category updated successfully");
   } catch (e: any) {
     console.error("Error in updateCategory:", e);
-    errorRes(res, 500, "Failed to update categoryorite", e.message);
+    errorRes(res, 500, "Failed to update category", e.message);
   }
 };
 
@@ -210,7 +210,7 @@ export const getCategoryByTitle = async (
     const categorySnap = await categoryRef.get();
 
     if (!categorySnap.exists) {
-      errorRes(res, 404, `Categoryorite item titled '${formattedTitle}' not found.`);
+      errorRes(res, 404, `Category item titled '${formattedTitle}' not found.`);
       return;
     }
 
@@ -219,7 +219,7 @@ export const getCategoryByTitle = async (
       ...categorySnap.data()
     };
 
-    successRes(res, 200, { data: categoryDataWithId }, "Categoryorite retrieved successfully.");
+    successRes(res, 200, { data: categoryDataWithId }, "Category retrieved successfully.");
   } catch (error: any) {
     console.error("Error in getCategoryByTitle:", error);
     errorRes(res, 500, "Internal server error", error.message);
