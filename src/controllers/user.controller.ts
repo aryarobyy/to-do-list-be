@@ -3,7 +3,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { authRes, errorRes, successRes } from '../utils/response';
 import { admin, adminFirestore } from '../firebase/admin.sdk';
-import { postFav, updateFav } from './favNote.controller';
+import { postCategory, updateCategory } from './category.controller';
 
 const firestore = getFirestore();
 const auth = getAuth();
@@ -82,19 +82,19 @@ export const registerUser = async (
 
     const titles = [
       "Tomorrow",
-      "Favourite"
+      "Categoryourite"
     ];
 
-    const favouriteCreationPromises = titles.map(async (titleItem) => {
-      const favouriteDocRef = userRef.collection("favourite").doc(titleItem);
-      return favouriteDocRef.set({
+    const categoryouriteCreationPromises = titles.map(async (titleItem) => {
+      const categoryouriteDocRef = userRef.collection("categoryourite").doc(titleItem);
+      return categoryouriteDocRef.set({
         noteId: [],    
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     });
 
-    await Promise.all(favouriteCreationPromises);
+    await Promise.all(categoryouriteCreationPromises);
     
     if (!storedSnap.exists) {
       console.warn(`User document ${id} not found after setDoc.`);

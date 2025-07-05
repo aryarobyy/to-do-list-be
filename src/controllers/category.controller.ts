@@ -3,9 +3,9 @@ import { errorRes, successRes } from "../utils/response";
 import { admin, adminFirestore } from "../firebase/admin.sdk";
 
 const USER_COLLECTION = 'users'
-const FAV_COLLECTION = 'favourite'
+const CATEGORY_COLLECTION = 'category'
 
-export const postFav = async (
+export const postCategory = async (
     req: Request,
     res: Response,
     next: NextFunction
@@ -27,9 +27,9 @@ export const postFav = async (
 
         const titleFormat = titleHandler(title);
 
-        const favRef = creatorRef.collection(FAV_COLLECTION).doc(titleFormat);
+        const categoryRef = creatorRef.collection(CATEGORY_COLLECTION).doc(titleFormat);
 
-        await favRef.set(
+        await categoryRef.set(
         {
           noteId: admin.firestore.FieldValue.arrayUnion(...noteId),
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -38,16 +38,16 @@ export const postFav = async (
         { merge: true }
         );
 
-        const storedSnap = await favRef.get();
+        const storedSnap = await categoryRef.get();
 
-        successRes(res, 200, { data: storedSnap.data() }, "Favourite saved successfully");
+        successRes(res, 200, { data: storedSnap.data() }, "Category saved successfully");
     } catch (e: any) {
-        console.error("Error in postFav:", e);
-        errorRes(res, 500, "Failed to save favourite", e.message);
+        console.error("Error in postCategory:", e);
+        errorRes(res, 500, "Failed to save category", e.message);
     }
 };
 
-export const getAllFav = async (
+export const getAllCategory = async (
     req: Request,
     res: Response,
     next: NextFunction
@@ -68,13 +68,13 @@ export const getAllFav = async (
             throw new Error(`Unknown creator: ${creatorId}`);
         }
         
-        const favRef = await adminFirestore
+        const categoryRef = await adminFirestore
             .collection(USER_COLLECTION)
             .doc(creatorId)
-            .collection(FAV_COLLECTION)
+            .collection(CATEGORY_COLLECTION)
             .get()
 
-        const data = favRef.docs.map((doc) => ({
+        const data = categoryRef.docs.map((doc) => ({
             id: doc.id,
             ...doc.data()
         }));
@@ -86,7 +86,7 @@ export const getAllFav = async (
     }
 }
 
-export const updateFavCategory = async (
+export const updateCategoryCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -105,17 +105,17 @@ export const updateFavCategory = async (
     const creatorRef = adminFirestore.collection(USER_COLLECTION).doc(creatorId)
 
     const oldRef = creatorRef
-        .collection(FAV_COLLECTION)
+        .collection(CATEGORY_COLLECTION)
         .doc(oldTitleFormatted)
 
     const newRef = creatorRef
-        .collection(FAV_COLLECTION)
+        .collection(CATEGORY_COLLECTION)
         .doc(newTitleFormatted)
 
     const oldSnap = await oldRef.get()
 
     if (!oldSnap.exists) {
-      errorRes(res, 404, "Old favourite not found")
+      errorRes(res, 404, "Old category not found")
       return;
     }
 
@@ -129,15 +129,15 @@ export const updateFavCategory = async (
 
     await oldRef.delete();
 
-    successRes(res, 200, { newTitle: newTitleFormatted }, "Favourite renamed successfully");
+    successRes(res, 200, { newTitle: newTitleFormatted }, "Category renamed successfully");
   } catch (e: any) {
-    console.error("Error in renameFavCollection:", e)
-    errorRes(res, 500, "Failed to rename favourite", e.message)
+    console.error("Error in renameCategoryCollection:", e)
+    errorRes(res, 500, "Failed to rename category", e.message)
   }
 };
 
 
-export const updateFav = async (
+export const updateCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -151,21 +151,21 @@ export const updateFav = async (
     }
 
     const formattedTitle = titleHandler(title);
-    const favRef = adminFirestore
+    const categoryRef = adminFirestore
       .collection(USER_COLLECTION)
       .doc(creatorId)
-      .collection(FAV_COLLECTION)
+      .collection(CATEGORY_COLLECTION)
       .doc(formattedTitle);
 
-    const favSnap = await favRef.get();
+    const categorySnap = await categoryRef.get();
 
-    if (!favSnap.exists) {
-      errorRes(res, 404, `Favorite '${formattedTitle}' not found`);
+    if (!categorySnap.exists) {
+      errorRes(res, 404, `Categoryorite '${formattedTitle}' not found`);
       return;
     }
 
-    if (addNoteId.length > 0 && !favSnap.get("noteId")) {
-      await favRef.update({ noteId: [] });
+    if (addNoteId.length > 0 && !categorySnap.get("noteId")) {
+      await categoryRef.update({ noteId: [] });
     }
 
     const updateData: Record<string, any> = {};
@@ -173,16 +173,16 @@ export const updateFav = async (
     if (addNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayUnion(...addNoteId)
     if (removeNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayRemove(...removeNoteId)
 
-    await favRef.update(updateData);
+    await categoryRef.update(updateData);
 
-    successRes(res, 200, { data: updateData }, "Favorite updated successfully");
+    successRes(res, 200, { data: updateData }, "Categoryorite updated successfully");
   } catch (e: any) {
-    console.error("Error in updateFav:", e);
-    errorRes(res, 500, "Failed to update favorite", e.message);
+    console.error("Error in updateCategory:", e);
+    errorRes(res, 500, "Failed to update categoryorite", e.message);
   }
 };
 
-export const getFavByTitle = async (
+export const getCategoryByTitle = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -204,24 +204,24 @@ export const getFavByTitle = async (
     }
 
     const formattedTitle = titleHandler(title);
-    const favRef = creatorRef
-    .collection(FAV_COLLECTION)
+    const categoryRef = creatorRef
+    .collection(CATEGORY_COLLECTION)
     .doc(formattedTitle);
-    const favSnap = await favRef.get();
+    const categorySnap = await categoryRef.get();
 
-    if (!favSnap.exists) {
-      errorRes(res, 404, `Favorite item titled '${formattedTitle}' not found.`);
+    if (!categorySnap.exists) {
+      errorRes(res, 404, `Categoryorite item titled '${formattedTitle}' not found.`);
       return;
     }
 
-    const favDataWithId = {
-      id: favSnap.id,
-      ...favSnap.data()
+    const categoryDataWithId = {
+      id: categorySnap.id,
+      ...categorySnap.data()
     };
 
-    successRes(res, 200, { data: favDataWithId }, "Favorite retrieved successfully.");
+    successRes(res, 200, { data: categoryDataWithId }, "Categoryorite retrieved successfully.");
   } catch (error: any) {
-    console.error("Error in getFavByTitle:", error);
+    console.error("Error in getCategoryByTitle:", error);
     errorRes(res, 500, "Internal server error", error.message);
   }
 };
