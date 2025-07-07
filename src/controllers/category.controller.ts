@@ -11,9 +11,9 @@ export const postCategory = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { title, noteId = [], creatorId } = req.body;
+        const { title, noteId, creatorId } = req.body;
 
-        if (!creatorId || !title || !Array.isArray(noteId) || noteId.length === 0) {
+        if (!creatorId || !title) {
         errorRes(res, 400, "creator, title, or noteId is empty or invalid");
         return;
         }
@@ -29,14 +29,16 @@ export const postCategory = async (
 
         const categoryRef = creatorRef.collection(CATEGORY_COLLECTION).doc(titleFormat);
 
-        await categoryRef.set(
-        {
-          noteId: admin.firestore.FieldValue.arrayUnion(...noteId),
+        const postedData: { [key: string]: any } = {
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-        );
+        };
+        if (Array.isArray(noteId) && noteId.length > 0) {
+            postedData.noteId = admin.firestore.FieldValue.arrayUnion(...noteId);
+          } else if (Array.isArray(noteId) && noteId.length === 0) {
+        }
+
+        await categoryRef.set(postedData, { merge: true });
 
         const storedSnap = await categoryRef.get();
 
