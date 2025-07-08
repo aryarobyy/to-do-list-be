@@ -41,8 +41,10 @@ export const postCategory = async (
         await categoryRef.set(postedData, { merge: true });
 
         const storedSnap = await categoryRef.get();
-
-        successRes(res, 200, { data: storedSnap.data() }, "Category saved successfully");
+        successRes(res, 200, { data: {
+          title: storedSnap.id,
+          ...storedSnap.data()} 
+        }, "Category saved successfully");
     } catch (e: any) {
         console.error("Error in postCategory:", e);
         errorRes(res, 500, "Failed to save category", e.message);
@@ -77,7 +79,7 @@ export const getAllCategory = async (
             .get()
 
         const data = categoryRef.docs.map((doc) => ({
-            id: doc.id,
+            title: doc.id,
             ...doc.data()
         }));
 
@@ -88,7 +90,7 @@ export const getAllCategory = async (
     }
 }
 
-export const updateCategoryCategory = async (
+export const updateCategoryTitle = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -137,7 +139,6 @@ export const updateCategoryCategory = async (
     errorRes(res, 500, "Failed to rename category", e.message)
   }
 };
-
 
 export const updateCategory = async (
   req: Request,
@@ -217,7 +218,7 @@ export const getCategoryByTitle = async (
     }
 
     const categoryDataWithId = {
-      id: categorySnap.id,
+      title: categorySnap.id,
       ...categorySnap.data()
     };
 
