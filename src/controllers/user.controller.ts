@@ -4,11 +4,12 @@ import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { authRes, errorRes, successRes } from '../utils/response';
 import { admin, adminFirestore } from '../firebase/admin.sdk';
 import { postCategory, updateCategory } from './category.controller';
+import { USER_COLLECTION } from '../core/constants';
+import { generateJwt, verifyJwtToken } from '../utils/jwt';
+import { error } from 'console';
 
 const firestore = getFirestore();
 const auth = getAuth();
-
-const USER_COLLECTION = "users";
 
 enum ROLE {
   ADMIN,
@@ -82,7 +83,7 @@ export const registerUser = async (
 
     const titles = [
       "Tomorrow",
-      "Category"
+      "Favourite"
     ];
 
     const categoryCreationPromises = titles.map(async (titleItem) => {
@@ -130,7 +131,7 @@ export const loginUser = async  (
 
   try{
     const userRec = await signInWithEmailAndPassword(auth, email, password);
-    const token = await userRec.user.getIdToken();
+    const token = generateJwt(userRec.user.uid);
 
     const userDoc = await getDoc(doc(firestore, USER_COLLECTION, userRec.user.uid))
 
@@ -296,39 +297,18 @@ export const verifyToken = async (
   next: NextFunction
 ): Promise<void> => {
   const { token } = req.body;
-
+  console.log(req.body);
   if (!token) {
     errorRes(res, 400, "No token provided");
     return;
   }
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
+    const decodedToken = verifyJwtToken(token);
 
-    const currentTime = Math.floor(Date.now() / 1000);
-    if (decodedToken.exp && decodedToken.exp < currentTime) {
-      errorRes(res, 401, "Token has expired. Please refresh your token.");
-      return;
-    }
-
-    (req as any).user = decodedToken;
-
-    next();
+    successRes(res, 200, { user: decodedToken }, "Token verified successfully");
   } catch (e: any) {
     console.error("Token verification failed:", e);
-
-    switch (e.code) {
-      case "auth/id-token-expired":
-        errorRes(res, 401, "Token has expired. Please refresh the token.", e.message);
-        break;
-      case "auth/id-token-revoked":
-        errorRes(res, 401, "Token has been revoked. Please sign in again.", e.message);
-        break;
-      case "auth/invalid-id-token":
-        errorRes(res, 401, "Invalid token format.", e.message);
-        break;
-      default:
-        errorRes(res, 401, "Token verification failed.", e.message);
-    }
+    errorRes(res, 400, "Invalid token", e.message);
   }
 };
