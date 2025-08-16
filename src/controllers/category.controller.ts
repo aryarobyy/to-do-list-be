@@ -1,9 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { errorRes, successRes } from "../utils/response";
 import { admin, adminFirestore } from "../firebase/admin.sdk";
-
-const USER_COLLECTION = 'users'
-const CATEGORY_COLLECTION = 'category'
+import { CATEGORY_COLLECTION, USER_COLLECTION } from "../core/constants";
 
 export const postCategory = async (
     req: Request,
@@ -166,19 +164,27 @@ export const updateCategory = async (
       errorRes(res, 404, `Category '${formattedTitle}' not found`);
       return;
     }
+    const updateData: Record<string, any> = {};
 
     if (addNoteId.length > 0 && !categorySnap.get("noteId")) {
-      await categoryRef.update({ noteId: [] });
+      await categoryRef.update(updateData);
     }
 
-    const updateData: Record<string, any> = {};
+    const updatedSnap = await categoryRef.get();
+    const updatedData = updatedSnap.data();
 
     if (addNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayUnion(...addNoteId)
     if (removeNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayRemove(...removeNoteId)
 
     await categoryRef.update(updateData);
 
-    successRes(res, 200, { data: updateData }, "Category updated successfully");
+    const responseData = {
+      creatorId,
+      title: formattedTitle,
+      ...updatedData,
+    };
+
+    successRes(res, 200, { data: responseData }, "Category updated successfully");
   } catch (e: any) {
     console.error("Error in updateCategory:", e);
     errorRes(res, 500, "Failed to update category", e.message);

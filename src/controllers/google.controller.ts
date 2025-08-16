@@ -3,14 +3,13 @@ import { authRes, errorRes, successRes } from "../utils/response";
 import { NextFunction, Request, Response } from "express";
 import { admin, adminFirestore } from "../firebase/admin.sdk";
 import { v4 } from "uuid";
+import { USER_COLLECTION } from "../core/constants";
 
 const auth = getAuth();
 const provider = new GoogleAuthProvider();
 
 provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
 auth.languageCode = 'it';
-
-const USER_COLLECTION = "users";
 
 export const googleSignIn = async (
     req: Request,
