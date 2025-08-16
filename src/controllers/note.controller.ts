@@ -2,9 +2,7 @@ import { NextFunction, Response, Request } from 'express';
 import { v4 } from 'uuid';
 import { errorRes, successRes } from '../utils/response';
 import { admin, adminFirestore } from '../firebase/admin.sdk';
-
-const USER_COLLECTION = 'users'
-const NOTES_COLLECTION = 'notes'
+import { CATEGORY_COLLECTION, NOTES_COLLECTION, USER_COLLECTION } from '../core/constants';
 
 enum noteStatus {
     ACTIVE = "ACTIVE",
@@ -233,3 +231,35 @@ export const getNotesByTags = async (
         errorRes(res, 500, "Internal server error", e.message);
     }
 };
+
+export const deleteNote = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const { creatorId, noteId } = req.params;
+
+        const creatorSnap = await adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(creatorId)
+            .get();
+
+        if (!creatorSnap.exists) {
+            throw new Error(`Unknown creator: ${creatorId}`);
+        }
+
+        const data = await adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(creatorId)
+            .collection(NOTES_COLLECTION)
+            .doc(noteId)
+            .delete();
+
+        successRes(res, 200, { data }, "Note deleted successfully");
+    } catch (e: any) {
+        console.error("Error deleting note:", e);
+        errorRes(res, 500, "Error deleting note", e.message);
+    }
+};
+
