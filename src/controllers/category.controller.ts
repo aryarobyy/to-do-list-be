@@ -55,7 +55,7 @@ export const getAllCategory = async (
     next: NextFunction
 ): Promise<void> =>{
     try{
-        const { creatorId } = req.params
+        const creatorId = req.params.creatorId as string;
 
         if(!creatorId ){
           errorRes(res, 400, "creatorId is empty");

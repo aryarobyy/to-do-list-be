@@ -88,7 +88,7 @@ export const updateNote = async (
     res: Response,
     next: NextFunction
 ): Promise<void> =>{
-    const { noteId } = req.params;
+    const noteId = req.params.noteId as string;
     const { title, content, creatorId, status, subTasks, createdAt, updatedBy, schedule } = req.body
     try{
         if (!creatorId) {
@@ -134,7 +134,8 @@ export const getNoteById = async (
     res: Response,
     next: NextFunction): Promise<void> =>{
     try{
-        const { creatorId, noteId } = req.params
+        const creatorId = req.params.creatorId as string;
+        const noteId = req.params.noteId as string;
 
         const creatorSnap = await adminFirestore
             .collection(USER_COLLECTION)
@@ -171,7 +172,7 @@ export const getNotesByCreator = async (
     next: NextFunction
     ): Promise<void> => {
     try {
-    const { creatorId } = req.params;
+    const creatorId = req.params.creatorId as string;
 
     const notesRef = await adminFirestore
         .collection(USER_COLLECTION)
@@ -238,7 +239,8 @@ export const deleteNote = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { creatorId, noteId } = req.params;
+        const creatorId = req.params.creatorId as string;
+        const noteId = req.params.noteId as string;
 
         const creatorSnap = await adminFirestore
             .collection(USER_COLLECTION)

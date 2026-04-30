@@ -158,7 +158,7 @@ export const updateUser = async (
   try{
     const userRec = adminFirestore
       .collection(USER_COLLECTION)
-      .doc(id)
+      .doc(id as string)
 
     const snapshot = await userRec.get();
     
@@ -188,7 +188,7 @@ export const getUserById = async (
   next: NextFunction): Promise<void> =>{
     try{
       const { id } = req.params
-      const userSnap = await adminFirestore.collection(USER_COLLECTION).doc(id).get();
+      const userSnap = await adminFirestore.collection(USER_COLLECTION).doc(id as string).get();
 
       if (!userSnap.exists) {
         errorRes(res, 404, "User not found");
