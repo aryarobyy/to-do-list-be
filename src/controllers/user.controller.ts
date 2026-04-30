@@ -153,7 +153,7 @@ export const updateUser = async (
   res: Response,
   next: NextFunction
 ): Promise<void> =>{
-  const { id } = req.params;
+  const { id } = req.body;
   const updatedData  = req.body;
   try{
     const userRec = adminFirestore
@@ -187,7 +187,7 @@ export const getUserById = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { id } = req.params
+      const { id } = req.body
       const userSnap = await adminFirestore.collection(USER_COLLECTION).doc(id as string).get();
 
       if (!userSnap.exists) {
@@ -208,7 +208,7 @@ export const getUserByEmail = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { email } = req.params
+      const { email } = req.body
       const userSnap = await adminFirestore.collection(USER_COLLECTION).where("email", "==", email).get();
       if (userSnap.empty) {
         errorRes(res, 404, "User not found");
@@ -231,7 +231,7 @@ export const getUserByUsername = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { username } = req.params
+      const { username } = req.body
       const userSnap = await adminFirestore.collection(USER_COLLECTION).where("username", "==", username).get();
       if (userSnap.empty) {
         errorRes(res, 404, "User not found");
@@ -259,6 +259,63 @@ export const getCurrentUser = async (
     } catch (e: any) {
       console.error("Error getting current user:", e);
       errorRes(res, 500, "Error getting current user", e.message);
+  }
+}
+
+export const getUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const snapshot = await adminFirestore.collection(USER_COLLECTION).get();
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    successRes(res, 200, { data }, "Getting users successful");
+  } catch (e: any) {
+    console.error("Error getting users:", e);
+    errorRes(res, 500, "Error getting users", e.message);
+  }
+}
+
+export const changeRole = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { userId, newRole } = req.body;
+
+  try {
+    if (!userId || !newRole) {
+      errorRes(res, 400, "userId and newRole are required");
+      return;
+    }
+
+    const validRoles = ["USER", "ADMIN"];
+    if (!validRoles.includes(newRole)) {
+      errorRes(res, 400, `Invalid role. Valid roles: ${validRoles.join(", ")}`);
+      return;
+    }
+
+    if (newRole === "SUPER_ADMIN") {
+      errorRes(res, 403, "Cannot assign SUPER_ADMIN role");
+      return;
+    }
+
+    const userSnap = await adminFirestore.collection(USER_COLLECTION).doc(userId).get();
+    if (!userSnap.exists) {
+      errorRes(res, 404, "User not found");
+      return;
+    }
+
+    await adminFirestore.collection(USER_COLLECTION).doc(userId).update({ role: newRole });
+
+    successRes(res, 200, { userId, newRole }, "Role updated successfully");
+  } catch (e: any) {
+    console.error("Error changing role:", e);
+    errorRes(res, 500, "Error changing role", e.message);
   }
 }
 

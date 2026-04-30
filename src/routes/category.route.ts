@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { getAllCategory, postCategory, updateCategoryTitle, updateCategory, getCategoryByTitle } from "../controllers/category.controller";
+import { getAllCategory, postCategory, updateCategoryTitle, updateCategory, getCategoryByTitle, deleteCategory } from "../controllers/category.controller";
 
 const categoryRoute = Router();
 
-categoryRoute.post("/", postCategory)
-categoryRoute.get("/:creatorId", getAllCategory)
-categoryRoute.put("/", updateCategory)
-categoryRoute.put("/title", updateCategoryTitle)
-categoryRoute.post("/title", getCategoryByTitle)
+categoryRoute.post("/create", postCategory)
+categoryRoute.post("/list", getAllCategory)
+categoryRoute.post("/update", updateCategory)
+categoryRoute.post("/update-title", updateCategoryTitle)
+categoryRoute.post("/get-title", getCategoryByTitle)
+categoryRoute.post("/delete", deleteCategory)
 
 export default categoryRoute

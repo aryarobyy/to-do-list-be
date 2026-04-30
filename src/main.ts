@@ -9,6 +9,8 @@ import { Server } from "socket.io";
 import { initSocket } from './socket';
 import path from 'path';
 import categoryRoute from './routes/category.route';
+import todoRouter from './routes/todo.route';
+import subtaskRouter from './routes/subtask.route';
 
 dotenv.config();
 
@@ -37,6 +39,8 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use('/user', userRouter)
 app.use('/note', noteRouter)
 app.use('/category', categoryRoute)
+app.use('/todo', todoRouter)
+app.use('/subtask', subtaskRouter)
 
 httpServer.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

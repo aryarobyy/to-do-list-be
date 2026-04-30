@@ -55,7 +55,7 @@ export const getAllCategory = async (
     next: NextFunction
 ): Promise<void> =>{
     try{
-        const creatorId = req.params.creatorId as string;
+        const { creatorId } = req.body;
 
         if(!creatorId ){
           errorRes(res, 400, "creatorId is empty");
@@ -232,6 +232,42 @@ export const getCategoryByTitle = async (
   } catch (error: any) {
     console.error("Error in getCategoryByTitle:", error);
     errorRes(res, 500, "Internal server error", error.message);
+  }
+};
+
+export const deleteCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { creatorId, title } = req.body;
+
+    if (!creatorId || !title) {
+      errorRes(res, 400, "creatorId and title are required");
+      return;
+    }
+
+    const formattedTitle = titleHandler(title);
+    const categoryRef = adminFirestore
+      .collection(USER_COLLECTION)
+      .doc(creatorId)
+      .collection(CATEGORY_COLLECTION)
+      .doc(formattedTitle);
+
+    const categorySnap = await categoryRef.get();
+
+    if (!categorySnap.exists) {
+      errorRes(res, 404, `Category '${formattedTitle}' not found`);
+      return;
+    }
+
+    await categoryRef.delete();
+
+    successRes(res, 200, {}, "Category deleted successfully");
+  } catch (e: any) {
+    console.error("Error in deleteCategory:", e);
+    errorRes(res, 500, "Failed to delete category", e.message);
   }
 };
 
