@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { errorRes, successRes } from "../utils/response";
-import { admin, adminFirestore } from "../firebase/admin.sdk";
-import { CATEGORY_COLLECTION, USER_COLLECTION } from "../core/constants";
+import { CategoryService } from "../services/category.service";
 
 export const postCategory = async (
     req: Request,
@@ -12,37 +11,12 @@ export const postCategory = async (
         const { title, noteId, creatorId } = req.body;
 
         if (!creatorId || !title) {
-        errorRes(res, 400, "creator, title, or noteId is empty or invalid");
-        return;
+          errorRes(res, 400, "creator, title is empty or invalid");
+          return;
         }
 
-        const creatorRef = adminFirestore.collection(USER_COLLECTION).doc(creatorId);
-        const creatorSnap = await creatorRef.get();
-
-        if (!creatorSnap.exists) {
-        throw new Error(`Unknown creator: ${creatorId}`);
-        }
-
-        const titleFormat = titleHandler(title);
-
-        const categoryRef = creatorRef.collection(CATEGORY_COLLECTION).doc(titleFormat);
-
-        const postedData: { [key: string]: any } = {
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        if (Array.isArray(noteId) && noteId.length > 0) {
-            postedData.noteId = admin.firestore.FieldValue.arrayUnion(...noteId);
-          } else if (Array.isArray(noteId) && noteId.length === 0) {
-        }
-
-        await categoryRef.set(postedData, { merge: true });
-
-        const storedSnap = await categoryRef.get();
-        successRes(res, 200, { data: {
-          title: storedSnap.id,
-          ...storedSnap.data()} 
-        }, "Category saved successfully");
+        const data = await CategoryService.postCategory(creatorId, title, noteId || []);
+        successRes(res, 200, { data }, "Category saved successfully");
     } catch (e: any) {
         console.error("Error in postCategory:", e);
         errorRes(res, 500, "Failed to save category", e.message);
@@ -59,32 +33,14 @@ export const getAllCategory = async (
 
         if(!creatorId ){
           errorRes(res, 400, "creatorId is empty");
+          return;
         }
 
-        const creatorSnap = await adminFirestore
-            .collection(USER_COLLECTION)
-            .doc(creatorId)
-            .get();
-
-        if (!creatorSnap.exists) {
-            throw new Error(`Unknown creator: ${creatorId}`);
-        }
-        
-        const categoryRef = await adminFirestore
-            .collection(USER_COLLECTION)
-            .doc(creatorId)
-            .collection(CATEGORY_COLLECTION)
-            .get()
-
-        const data = categoryRef.docs.map((doc) => ({
-            title: doc.id,
-            ...doc.data()
-        }));
-
-        successRes(res, 200, { data }, "  successful");
+        const data = await CategoryService.getAllCategory(creatorId);
+        successRes(res, 200, { data }, "Category list successful");
     } catch (e: any) {
-        console.error("Error in :", e);
-        errorRes(res, 500, "Error ", e.message);
+        console.error("Error in getAllCategory:", e);
+        errorRes(res, 500, "Error getting category", e.message);
     }
 }
 
@@ -101,39 +57,10 @@ export const updateCategoryTitle = async (
       return;
     }
 
-    const oldTitleFormatted = titleHandler(oldTitle);
-    const newTitleFormatted = titleHandler(newTitle);
-
-    const creatorRef = adminFirestore.collection(USER_COLLECTION).doc(creatorId)
-
-    const oldRef = creatorRef
-        .collection(CATEGORY_COLLECTION)
-        .doc(oldTitleFormatted)
-
-    const newRef = creatorRef
-        .collection(CATEGORY_COLLECTION)
-        .doc(newTitleFormatted)
-
-    const oldSnap = await oldRef.get()
-
-    if (!oldSnap.exists) {
-      errorRes(res, 404, "Old category not found")
-      return;
-    }
-
-    const oldData = oldSnap.data();
-
-    await newRef.set({
-      ...oldData,
-      title: newTitleFormatted,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    await oldRef.delete();
-
-    successRes(res, 200, { newTitle: newTitleFormatted }, "Category renamed successfully");
+    const data = await CategoryService.updateCategoryTitle(creatorId, oldTitle, newTitle);
+    successRes(res, 200, data, "Category renamed successfully");
   } catch (e: any) {
-    console.error("Error in renameCategoryCollection:", e)
+    console.error("Error in updateCategoryTitle:", e)
     errorRes(res, 500, "Failed to rename category", e.message)
   }
 };
@@ -151,40 +78,8 @@ export const updateCategory = async (
       return;
     }
 
-    const formattedTitle = titleHandler(title);
-    const categoryRef = adminFirestore
-      .collection(USER_COLLECTION)
-      .doc(creatorId)
-      .collection(CATEGORY_COLLECTION)
-      .doc(formattedTitle);
-
-    const categorySnap = await categoryRef.get();
-
-    if (!categorySnap.exists) {
-      errorRes(res, 404, `Category '${formattedTitle}' not found`);
-      return;
-    }
-    const updateData: Record<string, any> = {};
-
-    if (addNoteId.length > 0 && !categorySnap.get("noteId")) {
-      await categoryRef.update(updateData);
-    }
-
-    const updatedSnap = await categoryRef.get();
-    const updatedData = updatedSnap.data();
-
-    if (addNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayUnion(...addNoteId)
-    if (removeNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayRemove(...removeNoteId)
-
-    await categoryRef.update(updateData);
-
-    const responseData = {
-      creatorId,
-      title: formattedTitle,
-      ...updatedData,
-    };
-
-    successRes(res, 200, { data: responseData }, "Category updated successfully");
+    const data = await CategoryService.updateCategory(creatorId, title, addNoteId, removeNoteId);
+    successRes(res, 200, { data }, "Category updated successfully");
   } catch (e: any) {
     console.error("Error in updateCategory:", e);
     errorRes(res, 500, "Failed to update category", e.message);
@@ -204,31 +99,8 @@ export const getCategoryByTitle = async (
       return;
     }
 
-    const creatorRef = adminFirestore.collection(USER_COLLECTION).doc(creatorId);
-    const creatorSnap = await creatorRef.get();
-
-    if (!creatorSnap.exists) {
-      errorRes(res, 404, `User with ID '${creatorId}' not found.`);
-      return;
-    }
-
-    const formattedTitle = titleHandler(title);
-    const categoryRef = creatorRef
-    .collection(CATEGORY_COLLECTION)
-    .doc(formattedTitle);
-    const categorySnap = await categoryRef.get();
-
-    if (!categorySnap.exists) {
-      errorRes(res, 404, `Category item titled '${formattedTitle}' not found.`);
-      return;
-    }
-
-    const categoryDataWithId = {
-      title: categorySnap.id,
-      ...categorySnap.data()
-    };
-
-    successRes(res, 200, { data: categoryDataWithId }, "Category retrieved successfully.");
+    const data = await CategoryService.getCategoryByTitle(creatorId, title);
+    successRes(res, 200, { data }, "Category retrieved successfully.");
   } catch (error: any) {
     console.error("Error in getCategoryByTitle:", error);
     errorRes(res, 500, "Internal server error", error.message);
@@ -248,33 +120,10 @@ export const deleteCategory = async (
       return;
     }
 
-    const formattedTitle = titleHandler(title);
-    const categoryRef = adminFirestore
-      .collection(USER_COLLECTION)
-      .doc(creatorId)
-      .collection(CATEGORY_COLLECTION)
-      .doc(formattedTitle);
-
-    const categorySnap = await categoryRef.get();
-
-    if (!categorySnap.exists) {
-      errorRes(res, 404, `Category '${formattedTitle}' not found`);
-      return;
-    }
-
-    await categoryRef.delete();
-
+    await CategoryService.deleteCategory(creatorId, title);
     successRes(res, 200, {}, "Category deleted successfully");
   } catch (e: any) {
     console.error("Error in deleteCategory:", e);
     errorRes(res, 500, "Failed to delete category", e.message);
   }
 };
-
-const titleHandler = (title: string): string => {
-  return title
-      .toLowerCase()
-      .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-}

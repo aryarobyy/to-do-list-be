@@ -1,20 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { authRes, errorRes, successRes } from '../utils/response';
-import { admin, adminFirestore } from '../firebase/admin.sdk';
-import { postCategory, updateCategory } from './category.controller';
-import { USER_COLLECTION } from '../core/constants';
-import { generateJwt, verifyJwtToken } from '../utils/jwt';
-import { error } from 'console';
+import { UserService } from '../services/user.service';
+import { AuthService } from '../services/auth.service';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
-const firestore = getFirestore();
 const auth = getAuth();
-
-enum ROLE {
-  ADMIN,
-  USER
-}
 
 const isEmailValid = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,7 +16,7 @@ export const registerUser = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { email, name, password, img_url, last_active, username } = req.body;
+  const { email, password } = req.body;
 
   if (!email || !password) {
     errorRes(res, 400, "Email and password are required");
@@ -37,82 +27,17 @@ export const registerUser = async (
     errorRes(res, 400, "Invalid email format");
     return;
   }  
-  
-  const emailCheck = await admin
-    .firestore()
-    .collection(USER_COLLECTION)
-    .where("email", "==", email)
-    .get();
-
-  if (!emailCheck.empty) {
-    res.status(400).json({ message: "Email Already Exists" });
-    return;
-  }
 
   try {
-    const userRec = await admin.auth().createUser({
-      email,
-      password,
-      displayName: name || "",
-      // photoURL: img_url || "",
-    });
-
-    const id = userRec.uid;
-
-    const data = {
-      id,
-      name: name || "",
-      username: username,
-      email,
-      image: img_url || "",
-      role: ROLE.USER,  
-      lastActive: last_active || new Date().toISOString(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    const userRef = adminFirestore
-      .collection(USER_COLLECTION)
-      .doc(id);
-
-    await userRef.set(data);
-
-    const storedSnap = await adminFirestore
-        .collection(USER_COLLECTION)
-        .doc(id)
-        .get();
-
-    const titles = [
-      "Tomorrow",
-      "Favourite"
-    ];
-
-    const categoryCreationPromises = titles.map(async (titleItem) => {
-      const categoryDocRef = userRef.collection("category").doc(titleItem);
-      return categoryDocRef.set({
-        noteId: [],    
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    });
-
-    await Promise.all(categoryCreationPromises);
-    
-    if (!storedSnap.exists) {
-      console.warn(`User document ${id} not found after setDoc.`);
-    } else {
-      console.log("Data successfully stored in Firestore:", storedSnap.data());
-    }
-
-    const token = await admin.auth().createCustomToken(id);
-
+    const { data, token } = await UserService.registerUser(req.body);
     authRes(res, 200, { data }, "User created successfully", token);
   } catch (e: any) {
     console.error("Error in register User:", e);
-    errorRes(res, 500, "Error creating user", e.message);
+    errorRes(res, 400, "Error creating user", e.message);
   }
 };
 
-export const loginUser = async  (
+export const loginUser = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -131,17 +56,12 @@ export const loginUser = async  (
 
   try{
     const userRec = await signInWithEmailAndPassword(auth, email, password);
-    const token = generateJwt(userRec.user.uid);
-
-    const userDoc = await getDoc(doc(firestore, USER_COLLECTION, userRec.user.uid))
-
-    if (!userDoc.exists()) {
-      errorRes(res, 404, "User data not found in Firestore");
-      return;
-    }
+    const userId = userRec.user.uid;
     
-    const data = userDoc.data();
-    authRes(res, 200, { data },"Login successful", token);
+    const { accessToken, session } = await AuthService.generateAndSaveTokens(userId);
+    const data = await UserService.getUserById(userId);
+
+    authRes(res, 200, { data, session },"Login successful", accessToken);
   } catch (e: any) {
     console.error("Error in login User:", e);
     errorRes(res, 500, "Error Login user", e.message);
@@ -155,30 +75,13 @@ export const updateUser = async (
 ): Promise<void> =>{
   const { id } = req.body;
   const updatedData  = req.body;
+  
   try{
-    const userRec = adminFirestore
-      .collection(USER_COLLECTION)
-      .doc(id as string)
-
-    const snapshot = await userRec.get();
-    
-    if (!snapshot.exists) {
-      errorRes(res, 404, "User not found");
-      return;
-    }
-      
-    await userRec.update(updatedData);
-    const updatedUser = await userRec.get();
-
-    successRes(
-      res,
-      200,
-      { data: updatedUser.data() },
-      "User update successful"
-    );
+    const data = await UserService.updateUser(id as string, updatedData);
+    successRes(res, 200, { data }, "User update successful");
   } catch (e: any) {
-    console.error("Error in :", e);
-    errorRes(res, 500, "Error ", e.message);
+    console.error("Error in updateUser:", e);
+    errorRes(res, 500, "Error updating user", e.message);
   }
 }
 
@@ -187,15 +90,8 @@ export const getUserById = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { id } = req.body
-      const userSnap = await adminFirestore.collection(USER_COLLECTION).doc(id as string).get();
-
-      if (!userSnap.exists) {
-        errorRes(res, 404, "User not found");
-        return;
-      }
-  
-      const data = userSnap.data();
+      const { id } = req.body;
+      const data = await UserService.getUserById(id as string);
       successRes(res, 200, { data }, "Getting user successful");
     } catch (e: any) {
       console.error("Wrong userId:", e);
@@ -208,17 +104,8 @@ export const getUserByEmail = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { email } = req.body
-      const userSnap = await adminFirestore.collection(USER_COLLECTION).where("email", "==", email).get();
-      if (userSnap.empty) {
-        errorRes(res, 404, "User not found");
-        return;
-      }
-      const data = userSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-  
+      const { email } = req.body;
+      const data = await UserService.getUserByEmail(email);
       successRes(res, 200, { data }, "Getting user successful");
     } catch (e: any) {
       console.error("Wrong email:", e);
@@ -231,17 +118,8 @@ export const getUserByUsername = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { username } = req.body
-      const userSnap = await adminFirestore.collection(USER_COLLECTION).where("username", "==", username).get();
-      if (userSnap.empty) {
-        errorRes(res, 404, "User not found");
-        return;
-      }
-      const data = userSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-  
+      const { username } = req.body;
+      const data = await UserService.getUserByUsername(username);
       successRes(res, 200, { data }, "Getting user successful");
     } catch (e: any) {
       console.error("Wrong username:", e);
@@ -254,7 +132,7 @@ export const getCurrentUser = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const data = auth.currentUser
+      const data = await UserService.getCurrentUser();
       successRes(res, 200, { data }, "Getting user successful");
     } catch (e: any) {
       console.error("Error getting current user:", e);
@@ -268,11 +146,7 @@ export const getUsers = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const snapshot = await adminFirestore.collection(USER_COLLECTION).get();
-    const data = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const data = await UserService.getUsers();
     successRes(res, 200, { data }, "Getting users successful");
   } catch (e: any) {
     console.error("Error getting users:", e);
@@ -293,26 +167,8 @@ export const changeRole = async (
       return;
     }
 
-    const validRoles = ["USER", "ADMIN"];
-    if (!validRoles.includes(newRole)) {
-      errorRes(res, 400, `Invalid role. Valid roles: ${validRoles.join(", ")}`);
-      return;
-    }
-
-    if (newRole === "SUPER_ADMIN") {
-      errorRes(res, 403, "Cannot assign SUPER_ADMIN role");
-      return;
-    }
-
-    const userSnap = await adminFirestore.collection(USER_COLLECTION).doc(userId).get();
-    if (!userSnap.exists) {
-      errorRes(res, 404, "User not found");
-      return;
-    }
-
-    await adminFirestore.collection(USER_COLLECTION).doc(userId).update({ role: newRole });
-
-    successRes(res, 200, { userId, newRole }, "Role updated successfully");
+    const data = await UserService.changeRole(userId, newRole);
+    successRes(res, 200, data, "Role updated successfully");
   } catch (e: any) {
     console.error("Error changing role:", e);
     errorRes(res, 500, "Error changing role", e.message);
@@ -326,22 +182,8 @@ export const logout = async (
 ): Promise<void> =>{
   const { id } = req.body;
   try {
-    const userRef = admin.firestore()
-      .collection(USER_COLLECTION)
-      .doc(id);
-
-    await userRef.update({
-      // isOnline: false,
-      lastActive: admin
-        .firestore
-        .FieldValue
-        .serverTimestamp(),
-    });
-
-    await admin.auth()
-      .revokeRefreshTokens(id);
-
-    successRes(res, 200, { userRef }, "Verify successful");
+    const data = await UserService.logout(id);
+    successRes(res, 200, data, "Logout successful");
   } catch (e: any) {
     console.error('Logout error:', e);
     errorRes(res, 500, "Logout failed", e.message);
@@ -354,16 +196,14 @@ export const verifyToken = async (
   next: NextFunction
 ): Promise<void> => {
   const { token } = req.body;
-  console.log(req.body);
   if (!token) {
     errorRes(res, 400, "No token provided");
     return;
   }
 
   try {
-    const decodedToken = verifyJwtToken(token);
-
-    successRes(res, 200, { user: decodedToken }, "Token verified successfully");
+    const data = await AuthService.verifyUserToken(token);
+    successRes(res, 200, data, "Token verified successfully");
   } catch (e: any) {
     console.error("Token verification failed:", e);
     errorRes(res, 400, "Invalid token", e.message);
