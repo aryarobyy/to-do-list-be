@@ -7,6 +7,13 @@ export const postNote = async (
     res: Response,
     next: NextFunction
 ): Promise<void> =>{
+    const { creatorId, title } = req.body;
+
+    if (!creatorId || !title) {
+        errorRes(res, 400, "creatorId and title are required");
+        return;
+    }
+
     try{
         const data = await NoteService.postNote(req.body);
         successRes(res, 200, { data }, "Notes created successful");

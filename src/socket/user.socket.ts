@@ -1,12 +1,13 @@
 import { Socket } from "socket.io";
 import { adminFirestore } from "../firebase/admin.sdk";
+import { USER_COLLECTION } from "../core/constants";
 
 export const handleUserSocket = (socket: Socket) => {
 socket.on("stream-user", (userId: string) => {
     console.log(`User streaming: ${userId}`);
 
     const unsubscribe = adminFirestore
-    .collection("user")
+    .collection(USER_COLLECTION)
     .doc(userId)
     .onSnapshot((docSnapshot) => {
     if (docSnapshot.exists) {

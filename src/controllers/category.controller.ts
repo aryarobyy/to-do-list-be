@@ -120,8 +120,8 @@ export const deleteCategory = async (
       return;
     }
 
-    await CategoryService.deleteCategory(creatorId, title);
-    successRes(res, 200, {}, "Category deleted successfully");
+    const data = await CategoryService.deleteCategory(creatorId, title);
+    successRes(res, 200, { data }, "Category deleted successfully");
   } catch (e: any) {
     console.error("Error in deleteCategory:", e);
     errorRes(res, 500, "Failed to delete category", e.message);

@@ -1,15 +1,49 @@
 import { admin, adminFirestore } from "../firebase/admin.sdk";
-import { CATEGORY_COLLECTION, USER_COLLECTION } from "../core/constants";
+import { CATEGORY_COLLECTION, TODO_COLLECTION, USER_COLLECTION } from "../core/constants";
+import { formatCategoryTitle } from "../utils/category";
 
 export const titleHandler = (title: string): string => {
-  return title
-      .toLowerCase()
-      .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
+  return formatCategoryTitle(title);
 }
 
 export class CategoryService {
+  private static async updateTodosCategory(creatorId: string, oldCategory: string, newCategory?: string) {
+    const todosSnap = await adminFirestore
+      .collection(USER_COLLECTION)
+      .doc(creatorId)
+      .collection(TODO_COLLECTION)
+      .where("category", "==", oldCategory)
+      .get();
+
+    if (todosSnap.empty) {
+      return 0;
+    }
+
+    let batch = adminFirestore.batch();
+    let operationCount = 0;
+    const commits: Promise<FirebaseFirestore.WriteResult[]>[] = [];
+
+    todosSnap.docs.forEach((doc) => {
+      if (operationCount === 499) {
+        commits.push(batch.commit());
+        batch = adminFirestore.batch();
+        operationCount = 0;
+      }
+
+      batch.update(doc.ref, {
+        category: newCategory || admin.firestore.FieldValue.delete(),
+      });
+      operationCount++;
+    });
+
+    if (operationCount > 0) {
+      commits.push(batch.commit());
+    }
+
+    await Promise.all(commits);
+    return todosSnap.size;
+  }
+
   static async postCategory(creatorId: string, title: string, noteId: any[]) {
     const creatorRef = adminFirestore.collection(USER_COLLECTION).doc(creatorId);
     const creatorSnap = await creatorRef.get();
@@ -75,6 +109,10 @@ export class CategoryService {
       throw new Error("Old category not found");
     }
 
+    if (oldTitleFormatted === newTitleFormatted) {
+      return { newTitle: newTitleFormatted, updatedTodoCount: 0 };
+    }
+
     const oldData = oldSnap.data();
 
     await newRef.set({
@@ -83,9 +121,11 @@ export class CategoryService {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    const updatedTodoCount = await this.updateTodosCategory(creatorId, oldTitleFormatted, newTitleFormatted);
+
     await oldRef.delete();
 
-    return { newTitle: newTitleFormatted };
+    return { newTitle: newTitleFormatted, updatedTodoCount };
   }
 
   static async updateCategory(creatorId: string, title: string, addNoteId: any[], removeNoteId: any[]) {
@@ -102,19 +142,27 @@ export class CategoryService {
       throw new Error(`Category '${formattedTitle}' not found`);
     }
 
-    const updateData: Record<string, any> = {};
-
-    if (addNoteId.length > 0 && !categorySnap.get("noteId")) {
-      await categoryRef.update(updateData);
+    // Initialize noteId field if it doesn't exist yet
+    if (!categorySnap.get("noteId")) {
+      await categoryRef.update({ noteId: [] });
     }
 
+    // Run addNoteId and removeNoteId as SEPARATE operations to avoid conflict
+    if (addNoteId.length > 0) {
+      await categoryRef.update({
+        noteId: admin.firestore.FieldValue.arrayUnion(...addNoteId),
+      });
+    }
+
+    if (removeNoteId.length > 0) {
+      await categoryRef.update({
+        noteId: admin.firestore.FieldValue.arrayRemove(...removeNoteId),
+      });
+    }
+
+    // Read data AFTER all updates to return fresh data
     const updatedSnap = await categoryRef.get();
     const updatedData = updatedSnap.data();
-
-    if (addNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayUnion(...addNoteId)
-    if (removeNoteId.length > 0) updateData.noteId = admin.firestore.FieldValue.arrayRemove(...removeNoteId)
-
-    await categoryRef.update(updateData);
 
     return {
       creatorId,
@@ -159,7 +207,9 @@ export class CategoryService {
       throw new Error(`Category '${formattedTitle}' not found`);
     }
 
+    const updatedTodoCount = await this.updateTodosCategory(creatorId, formattedTitle);
+
     await categoryRef.delete();
-    return true;
+    return { deleted: true, updatedTodoCount };
   }
 }

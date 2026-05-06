@@ -13,7 +13,7 @@ const subtaskRouter = Router();
 subtaskRouter.post("/create", createSubtask);
 subtaskRouter.post("/update", updateSubtask);
 subtaskRouter.post("/status", changeSubtaskStatus);
-subtaskRouter.post("/get", getSubtaskById);
+subtaskRouter.post("/detail", getSubtaskById);
 subtaskRouter.post("/list", getSubtasksByTodo);
 subtaskRouter.post("/delete", deleteSubtask);
 

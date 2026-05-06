@@ -7,7 +7,7 @@ categoryRoute.post("/create", postCategory)
 categoryRoute.post("/list", getAllCategory)
 categoryRoute.post("/update", updateCategory)
 categoryRoute.post("/update-title", updateCategoryTitle)
-categoryRoute.post("/get-title", getCategoryByTitle)
+categoryRoute.post("/detail", getCategoryByTitle)
 categoryRoute.post("/delete", deleteCategory)
 
 export default categoryRoute

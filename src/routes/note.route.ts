@@ -5,7 +5,7 @@ const noteRouter = Router()
 
 noteRouter.post('/create', postNote)
 noteRouter.post('/update', updateNote)
-noteRouter.post('/get', getNoteById)
+noteRouter.post('/detail', getNoteById)
 noteRouter.post('/list', getNotesByCreator)    
 noteRouter.post('/tags', getNotesByTags);
 noteRouter.post('/delete', deleteNote);

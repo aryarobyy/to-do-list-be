@@ -51,8 +51,8 @@ export const getTodosByCreator = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId } = req.body;
-    const data = await TodoService.getTodosByCreator(creatorId);
+    const { creatorId, category } = req.body;
+    const data = await TodoService.getTodosByCreator(creatorId, category);
     successRes(res, 200, { data }, 'Getting todos successful');
   } catch (e: any) {
     console.error('Error getting todos by creator:', e);
@@ -66,9 +66,9 @@ export const getLatestTodos = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, latest: latestBody } = req.body;
+    const { creatorId, latest: latestBody, category } = req.body;
     const latest = latestBody !== false;
-    const data = await TodoService.getLatestTodos(creatorId, latest);
+    const data = await TodoService.getLatestTodos(creatorId, latest, category);
     successRes(res, 200, { data }, 'Getting latest todos successful');
   } catch (e: any) {
     console.error('Error getting latest todos:', e);

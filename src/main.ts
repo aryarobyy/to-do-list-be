@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import './firebase/admin.sdk';
 import './firebase/firebase.config'
 import dotenv from 'dotenv';
+import authRouter from './routes/auth.route';
 import userRouter from './routes/user.route';
 import noteRouter from './routes/note.route';
 import { createServer } from "http";
@@ -36,6 +37,7 @@ app.get('/', (req: Request, res: Response) => {
 
 app.use(express.static(path.join(__dirname, "public")));
 
+app.use('/auth', authRouter)
 app.use('/user', userRouter)
 app.use('/note', noteRouter)
 app.use('/category', categoryRoute)

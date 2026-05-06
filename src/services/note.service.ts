@@ -10,7 +10,15 @@ export enum NoteStatus {
 export class NoteService {
   static async postNote(payload: any) {
     const { creatorId, schedule = '', updatedBy, title, content = '', status, priority, tags = [], collaborators, deadline, reminder, image, link, subTasks = [] } = payload;
-    
+
+    if (!creatorId) {
+      throw new Error('creatorId is required');
+    }
+
+    if (!title) {
+      throw new Error('title is required');
+    }
+
     const id = v4();
 
     const creatorSnap = await adminFirestore
@@ -66,7 +74,11 @@ export class NoteService {
     const { noteId, title, content, creatorId, status, subTasks, createdAt, updatedBy, schedule } = payload;
     
     if (!creatorId) {
-        throw new Error("Creator is required");
+        throw new Error("creatorId is required");
+    }
+
+    if (!noteId) {
+        throw new Error("noteId is required");
     }
 
     const creatorSnap = await adminFirestore
@@ -100,6 +112,10 @@ export class NoteService {
   }
 
   static async getNoteById(creatorId: string, noteId: string) {
+    if (!creatorId || !noteId) {
+      throw new Error('creatorId and noteId are required');
+    }
+
     const creatorSnap = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(creatorId)
@@ -124,6 +140,10 @@ export class NoteService {
   }
 
   static async getNotesByCreator(creatorId: string) {
+    if (!creatorId) {
+      throw new Error('creatorId is required');
+    }
+
     const notesRef = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(creatorId)
@@ -137,6 +157,10 @@ export class NoteService {
   }
 
   static async getNotesByTags(creatorId: string, tags: any[]) {
+    if (!creatorId) {
+      throw new Error('creatorId is required');
+    }
+
     if (!Array.isArray(tags) || tags.length === 0) {
         throw new Error("Tags must be a non-empty array");
     }
@@ -166,6 +190,10 @@ export class NoteService {
   }
 
   static async deleteNote(creatorId: string, noteId: string) {
+    if (!creatorId || !noteId) {
+      throw new Error('creatorId and noteId are required');
+    }
+
     const creatorSnap = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(creatorId)

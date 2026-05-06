@@ -1,76 +1,102 @@
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
-import { authRes, errorRes, successRes } from "../utils/response";
 import { NextFunction, Request, Response } from "express";
-import { admin, adminFirestore } from "../firebase/admin.sdk";
 import { v4 } from "uuid";
 import { USER_COLLECTION } from "../core/constants";
-
-const auth = getAuth();
-const provider = new GoogleAuthProvider();
-
-provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
-auth.languageCode = 'it';
+import { admin, adminFirestore } from "../firebase/admin.sdk";
+import { authRes, errorRes, successRes } from "../utils/response";
 
 export const googleSignIn = async (
     req: Request,
     res: Response,
     next: NextFunction
     ): Promise<void>  => {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+        errorRes(res, 400, "idToken is required");
+        return;
+    }
+
     try {
-        const id = v4()
-        const result = await signInWithPopup(auth, provider);
+        // Verify the Google ID token using Firebase Admin SDK (server-safe)
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const uid = decodedToken.uid;
 
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        const token = credential?.accessToken;
-        const user = result.user;
-
-        const data = {
-            id,
-            name: user.displayName,
-            email: user.email,
-            lastActive: new Date().toISOString(),
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-
-        await adminFirestore
+        // Check if user already exists in Firestore
+        const existingUserSnap = await adminFirestore
             .collection(USER_COLLECTION)
-            .doc(id)
-            .set(data)
+            .doc(uid)
+            .get();
 
-        const storedSnap = await adminFirestore
+        let userData: Record<string, any>;
+
+        if (existingUserSnap.exists) {
+            // Update last active for existing user
+            await adminFirestore
+                .collection(USER_COLLECTION)
+                .doc(uid)
+                .update({
+                    lastActive: new Date().toISOString(),
+                });
+
+            userData = { id: uid, ...existingUserSnap.data(), lastActive: new Date().toISOString() };
+        } else {
+            // Create new user
+            const id = uid;
+            userData = {
+                id,
+                name: decodedToken.name || "",
+                email: decodedToken.email || "",
+                image: decodedToken.picture || "",
+                role: "USER",
+                lastActive: new Date().toISOString(),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+
+            await adminFirestore
                 .collection(USER_COLLECTION)
                 .doc(id)
-                .get();
-            
-        if (!storedSnap.exists) {
-            console.warn(`User document ${id} not found after setDoc.`);
-        } else {
-            console.log("Data successfully stored in Firestore:", storedSnap.data());
-        }
-    
-        authRes(res, 200, { data }, "User created successfully", token as string);
-    } catch (error: any) {
-        const errorMessage = error.message;
-        const email = error.customData?.email;
-        const credential = GoogleAuthProvider.credentialFromError(error);
+                .set(userData);
 
-        console.error('Login gagal:', email, credential);
-        errorRes(res, 500, "Login Gagal", errorMessage);
+            // Create default categories
+            const userRef = adminFirestore.collection(USER_COLLECTION).doc(id);
+            const titles = ["Tomorrow", "Favourite"];
+            const categoryCreationPromises = titles.map(async (titleItem) => {
+                const categoryDocRef = userRef.collection("category").doc(titleItem);
+                return categoryDocRef.set({
+                    noteId: [],
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            });
+            await Promise.all(categoryCreationPromises);
+        }
+
+        const customToken = await admin.auth().createCustomToken(uid);
+
+        authRes(res, 200, { data: userData }, "User signed in successfully", customToken);
+    } catch (error: any) {
+        console.error('Google Sign-In failed:', error.message);
+        errorRes(res, 500, "Google Sign-In failed", error.message);
     }
 };
-
-
 
 export const googleSignOut = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
-  try {
-    await firebaseSignOut(auth);
-    successRes(res, 200, "Logout sukses")
-  } catch (error: any) {
-    console.error('Logout gagal:', error.message);
-    errorRes(res, 500, "Logout Gagal", error.message)
-  }
+    const { userId } = req.body;
+
+    if (!userId) {
+        errorRes(res, 400, "userId is required");
+        return;
+    }
+
+    try {
+        await admin.auth().revokeRefreshTokens(userId);
+        successRes(res, 200, {}, "Logout successful");
+    } catch (error: any) {
+        console.error('Logout failed:', error.message);
+        errorRes(res, 500, "Logout failed", error.message);
+    }
 };

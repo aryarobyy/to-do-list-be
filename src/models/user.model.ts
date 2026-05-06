@@ -20,3 +20,9 @@ export interface UserDto {
   user: User;
   session?: SessionInfo;
 }
+
+export enum Role {
+  USER = "USER",
+  ADMIN = "ADMIN",
+  SUPER_ADMIN = "SUPER_ADMIN",
+}
