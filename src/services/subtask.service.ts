@@ -1,5 +1,6 @@
 import { admin, adminFirestore } from '../firebase/admin.sdk';
 import { USER_COLLECTION, TODO_COLLECTION, SUBTASK_COLLECTION } from '../core/constants';
+import { sanitizeLimit, sanitizeOffset, stripTimestamps } from '../utils/query';
 import { v4 } from 'uuid';
 
 export class SubtaskService {
@@ -95,16 +96,20 @@ export class SubtaskService {
     return docSnap.data();
   }
 
-  static async getSubtasksByTodo(creatorId: string, todoId: string) {
+  static async getSubtasksByTodo(creatorId: string, todoId: string, limit?: number, offset?: number) {
+    const queryLimit = sanitizeLimit(limit);
+    const queryOffset = sanitizeOffset(offset);
     const querySnap = await adminFirestore
       .collection(USER_COLLECTION)
       .doc(creatorId)
       .collection(TODO_COLLECTION)
       .doc(todoId)
       .collection(SUBTASK_COLLECTION)
+      .offset(queryOffset)
+      .limit(queryLimit)
       .get();
 
-    return querySnap.docs.map((doc) => ({
+    return querySnap.docs.map((doc) => stripTimestamps({
       id: doc.id,
       ...doc.data(),
     }));

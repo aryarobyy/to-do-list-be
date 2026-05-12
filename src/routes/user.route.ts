@@ -3,7 +3,7 @@ import { getCurrentUser, getUserByEmail, getUserById, getUserByUsername, getUser
 
 const userRouter = Router();
 
-userRouter.post('/role', changeRole);
+userRouter.post('/change-role', changeRole);
 userRouter.post('/list', getUsers);
 userRouter.post('/current', getCurrentUser);
 userRouter.post('/email', getUserByEmail);

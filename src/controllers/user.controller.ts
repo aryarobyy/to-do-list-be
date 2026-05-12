@@ -78,7 +78,8 @@ export const getUsers = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const data = await UserService.getUsers();
+    const { limit, offset } = req.body;
+    const data = await UserService.getUsers(limit, offset);
     successRes(res, 200, { data }, "Getting users successful");
   } catch (e: any) {
     console.error("Error getting users:", e);

@@ -1,6 +1,7 @@
 import { admin, adminFirestore } from '../firebase/admin.sdk';
 import { CATEGORY_COLLECTION, SUBTASK_COLLECTION, TODO_COLLECTION, USER_COLLECTION } from '../core/constants';
 import { formatCategoryTitle } from '../utils/category';
+import { sanitizeLimit, sanitizeOffset, stripTimestamps } from '../utils/query';
 import { v4 } from 'uuid';
 
 export class TodoService {
@@ -148,7 +149,7 @@ export class TodoService {
     return docSnap.data();
   }
 
-  static async getTodosByCreator(creatorId: string, category?: string) {
+  static async getTodosByCreator(creatorId: string, category?: string, limit?: number, offset?: number) {
     let query: FirebaseFirestore.Query = adminFirestore
       .collection(USER_COLLECTION)
       .doc(creatorId)
@@ -158,15 +159,17 @@ export class TodoService {
       query = query.where('category', '==', formatCategoryTitle(category));
     }
 
-    const querySnap = await query.get();
+    const queryLimit = sanitizeLimit(limit);
+    const queryOffset = sanitizeOffset(offset);
+    const querySnap = await query.offset(queryOffset).limit(queryLimit).get();
 
-    return querySnap.docs.map((doc) => ({
+    return querySnap.docs.map((doc) => stripTimestamps({
       id: doc.id,
       ...doc.data(),
     }));
   }
 
-  static async getLatestTodos(creatorId: string, latest: boolean, category?: string) {
+  static async getLatestTodos(creatorId: string, latest: boolean, category?: string, limit?: number, offset?: number) {
     let query: FirebaseFirestore.Query = adminFirestore
       .collection(USER_COLLECTION)
       .doc(creatorId)
@@ -176,11 +179,15 @@ export class TodoService {
       query = query.where('category', '==', formatCategoryTitle(category));
     }
 
+    const queryLimit = sanitizeLimit(limit);
+    const queryOffset = sanitizeOffset(offset);
     const querySnap = await query
       .orderBy('createdAt', latest ? 'desc' : 'asc')
+      .offset(queryOffset)
+      .limit(queryLimit)
       .get();
 
-    return querySnap.docs.map((doc) => ({
+    return querySnap.docs.map((doc) => stripTimestamps({
       id: doc.id,
       ...doc.data(),
     }));
@@ -208,7 +215,6 @@ export class TodoService {
       throw new Error('Todo not found');
     }
 
-    // Delete all subtasks in subcollection before deleting the parent todo
     const subtasksSnap = await todoRef.collection(SUBTASK_COLLECTION).get();
 
     if (!subtasksSnap.empty) {

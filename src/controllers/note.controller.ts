@@ -57,8 +57,8 @@ export const getNotesByCreator = async (
     next: NextFunction
     ): Promise<void> => {
     try {
-        const { creatorId } = req.body;
-        const data = await NoteService.getNotesByCreator(creatorId);
+        const { creatorId, limit, offset } = req.body;
+        const data = await NoteService.getNotesByCreator(creatorId, limit, offset);
         successRes(res, 200, { data }, "Getting notes successful");
     } catch (e: any) {
         console.error("Error getting notes by creator:", e);
@@ -72,8 +72,8 @@ export const getNotesByTags = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { tags, creatorId } = req.body;
-        const data = await NoteService.getNotesByTags(creatorId, tags);
+        const { tags, creatorId, limit, offset } = req.body;
+        const data = await NoteService.getNotesByTags(creatorId, tags, limit, offset);
         successRes(res, 200, { data }, "Getting notes successful");
     } catch (e: any) {
         console.error("Error getting notes by tags:", e);

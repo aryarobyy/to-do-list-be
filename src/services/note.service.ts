@@ -1,5 +1,6 @@
 import { admin, adminFirestore } from '../firebase/admin.sdk';
 import { NOTES_COLLECTION, USER_COLLECTION } from '../core/constants';
+import { sanitizeLimit, sanitizeOffset, stripTimestamps } from '../utils/query';
 import { v4 } from 'uuid';
 
 export enum NoteStatus {
@@ -139,24 +140,28 @@ export class NoteService {
     return noteSnap.data();
   }
 
-  static async getNotesByCreator(creatorId: string) {
+  static async getNotesByCreator(creatorId: string, limit?: number, offset?: number) {
     if (!creatorId) {
       throw new Error('creatorId is required');
     }
 
+    const queryLimit = sanitizeLimit(limit);
+    const queryOffset = sanitizeOffset(offset);
     const notesRef = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(creatorId)
         .collection(NOTES_COLLECTION)
+        .offset(queryOffset)
+        .limit(queryLimit)
         .get();
 
-    return notesRef.docs.map((doc) => ({
+    return notesRef.docs.map((doc) => stripTimestamps({
         id: doc.id,
         ...doc.data()
     }));
   }
 
-  static async getNotesByTags(creatorId: string, tags: any[]) {
+  static async getNotesByTags(creatorId: string, tags: any[], limit?: number, offset?: number) {
     if (!creatorId) {
       throw new Error('creatorId is required');
     }
@@ -179,11 +184,15 @@ export class NoteService {
         .doc(creatorId)
         .collection(NOTES_COLLECTION);
 
+    const queryLimit = sanitizeLimit(limit);
+    const queryOffset = sanitizeOffset(offset);
     const snapshot = await notesRef
         .where('tags', 'array-contains-any', tags)
+        .offset(queryOffset)
+        .limit(queryLimit)
         .get();
 
-    return snapshot.docs.map((doc) => ({
+    return snapshot.docs.map((doc) => stripTimestamps({
         id: doc.id,
         ...doc.data(),
     }));

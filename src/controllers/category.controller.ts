@@ -29,14 +29,14 @@ export const getAllCategory = async (
     next: NextFunction
 ): Promise<void> =>{
     try{
-        const { creatorId } = req.body;
+        const { creatorId, limit, offset } = req.body;
 
         if(!creatorId ){
           errorRes(res, 400, "creatorId is empty");
           return;
         }
 
-        const data = await CategoryService.getAllCategory(creatorId);
+        const data = await CategoryService.getAllCategory(creatorId, limit, offset);
         successRes(res, 200, { data }, "Category list successful");
     } catch (e: any) {
         console.error("Error in getAllCategory:", e);

@@ -17,11 +17,9 @@ export const googleSignIn = async (
     }
 
     try {
-        // Verify the Google ID token using Firebase Admin SDK (server-safe)
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const uid = decodedToken.uid;
 
-        // Check if user already exists in Firestore
         const existingUserSnap = await adminFirestore
             .collection(USER_COLLECTION)
             .doc(uid)
@@ -30,7 +28,6 @@ export const googleSignIn = async (
         let userData: Record<string, any>;
 
         if (existingUserSnap.exists) {
-            // Update last active for existing user
             await adminFirestore
                 .collection(USER_COLLECTION)
                 .doc(uid)
@@ -40,7 +37,6 @@ export const googleSignIn = async (
 
             userData = { id: uid, ...existingUserSnap.data(), lastActive: new Date().toISOString() };
         } else {
-            // Create new user
             const id = uid;
             userData = {
                 id,
@@ -57,7 +53,6 @@ export const googleSignIn = async (
                 .doc(id)
                 .set(userData);
 
-            // Create default categories
             const userRef = adminFirestore.collection(USER_COLLECTION).doc(id);
             const titles = ["Tomorrow", "Favourite"];
             const categoryCreationPromises = titles.map(async (titleItem) => {
@@ -93,7 +88,26 @@ export const googleSignOut = async (
     }
 
     try {
-        await admin.auth().revokeRefreshTokens(userId);
+        const userSnap = await adminFirestore
+            .collection(USER_COLLECTION)
+            .doc(userId)
+            .get();
+
+        if (!userSnap.exists) {
+            errorRes(res, 404, "User not found");
+            return;
+        }
+
+        try {
+            await admin.auth().revokeRefreshTokens(userId);
+        } catch (e: any) {
+            if (e.code === 'auth/user-not-found') {
+                errorRes(res, 400, "No active session found. User is already logged out");
+                return;
+            }
+            throw e;
+        }
+
         successRes(res, 200, {}, "Logout successful");
     } catch (error: any) {
         console.error('Logout failed:', error.message);

@@ -148,13 +148,17 @@ export class AuthService {
     const userSnap = await userRef.get();
     const authSnap = await authRef.get();
 
+    if (!authSnap.exists) {
+      throw new Error('No active session found. User is already logged out');
+    }
+
+    await authRef.delete();
+
     if (userSnap.exists) {
       await userRef.update({
         lastActive: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
-
-    await authRef.delete();
 
     let firebaseTokensRevoked = false;
     try {
@@ -169,7 +173,7 @@ export class AuthService {
     return {
       id,
       userUpdated: userSnap.exists,
-      sessionDeleted: authSnap.exists,
+      sessionDeleted: true,
       firebaseTokensRevoked,
     };
   }

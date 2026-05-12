@@ -1,6 +1,7 @@
 import { adminFirestore } from '../firebase/admin.sdk';
 import { USER_COLLECTION } from '../core/constants';
 import { verifyJwtToken } from '../utils/jwt';
+import { sanitizeLimit, sanitizeOffset, stripTimestamps } from '../utils/query';
 
 enum ROLE {
   ADMIN = "ADMIN",
@@ -91,9 +92,15 @@ export class UserService {
     };
   }
 
-  static async getUsers() {
-    const snapshot = await adminFirestore.collection(USER_COLLECTION).get();
-    return snapshot.docs.map((doc) => ({
+  static async getUsers(limit?: number, offset?: number) {
+    const queryLimit = sanitizeLimit(limit);
+    const queryOffset = sanitizeOffset(offset);
+    const snapshot = await adminFirestore
+      .collection(USER_COLLECTION)
+      .offset(queryOffset)
+      .limit(queryLimit)
+      .get();
+    return snapshot.docs.map((doc) => stripTimestamps({
       id: doc.id,
       ...doc.data(),
     }));

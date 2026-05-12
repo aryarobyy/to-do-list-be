@@ -1,6 +1,7 @@
 import { admin, adminFirestore } from "../firebase/admin.sdk";
 import { CATEGORY_COLLECTION, TODO_COLLECTION, USER_COLLECTION } from "../core/constants";
 import { formatCategoryTitle } from "../utils/category";
+import { sanitizeLimit, sanitizeOffset, stripTimestamps } from "../utils/query";
 
 export const titleHandler = (title: string): string => {
   return formatCategoryTitle(title);
@@ -73,7 +74,7 @@ export class CategoryService {
     };
   }
 
-  static async getAllCategory(creatorId: string) {
+  static async getAllCategory(creatorId: string, limit?: number, offset?: number) {
     const creatorSnap = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(creatorId)
@@ -82,14 +83,18 @@ export class CategoryService {
     if (!creatorSnap.exists) {
         throw new Error(`Unknown creator: ${creatorId}`);
     }
-    
+
+    const queryLimit = sanitizeLimit(limit);
+    const queryOffset = sanitizeOffset(offset);
     const categoryRef = await adminFirestore
         .collection(USER_COLLECTION)
         .doc(creatorId)
         .collection(CATEGORY_COLLECTION)
+        .offset(queryOffset)
+        .limit(queryLimit)
         .get();
 
-    return categoryRef.docs.map((doc) => ({
+    return categoryRef.docs.map((doc) => stripTimestamps({
         title: doc.id,
         ...doc.data()
     }));
@@ -142,12 +147,10 @@ export class CategoryService {
       throw new Error(`Category '${formattedTitle}' not found`);
     }
 
-    // Initialize noteId field if it doesn't exist yet
     if (!categorySnap.get("noteId")) {
       await categoryRef.update({ noteId: [] });
     }
 
-    // Run addNoteId and removeNoteId as SEPARATE operations to avoid conflict
     if (addNoteId.length > 0) {
       await categoryRef.update({
         noteId: admin.firestore.FieldValue.arrayUnion(...addNoteId),
@@ -160,7 +163,6 @@ export class CategoryService {
       });
     }
 
-    // Read data AFTER all updates to return fresh data
     const updatedSnap = await categoryRef.get();
     const updatedData = updatedSnap.data();
 

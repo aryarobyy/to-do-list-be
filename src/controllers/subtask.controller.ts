@@ -66,8 +66,8 @@ export const getSubtasksByTodo = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, todoId } = req.body;
-    const data = await SubtaskService.getSubtasksByTodo(creatorId, todoId);
+    const { creatorId, todoId, limit, offset } = req.body;
+    const data = await SubtaskService.getSubtasksByTodo(creatorId, todoId, limit, offset);
     successRes(res, 200, { data }, 'Getting subtasks successful');
   } catch (e: any) {
     console.error('Error getting subtasks:', e);
