@@ -8,7 +8,7 @@ export const createTodo = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const data = await TodoService.createTodo(req.body);
+    const data = await TodoService.createTodo({ ...req.body, creatorId: req.user!.userId });
     successRes(res, 200, { data }, 'Todo created successfully');
   } catch (e: any) {
     console.error('Error in createTodo:', e);
@@ -22,7 +22,7 @@ export const updateTodo = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const data = await TodoService.updateTodo(req.body);
+    const data = await TodoService.updateTodo({ ...req.body, creatorId: req.user!.userId });
     successRes(res, 200, { data }, 'Todo updated successfully');
   } catch (e: any) {
     console.error('Error in updateTodo:', e);
@@ -36,7 +36,8 @@ export const getTodoById = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, todoId } = req.body;
+    const { todoId } = req.body;
+    const creatorId = req.user!.userId;
     const data = await TodoService.getTodoById(creatorId, todoId);
     successRes(res, 200, { data }, 'Getting todo successful');
   } catch (e: any) {
@@ -51,7 +52,8 @@ export const getTodosByCreator = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, category, limit, offset } = req.body;
+    const { category, limit, offset } = req.body;
+    const creatorId = req.user!.userId;
     const data = await TodoService.getTodosByCreator(creatorId, category, limit, offset);
     successRes(res, 200, { data }, 'Getting todos successful');
   } catch (e: any) {
@@ -66,7 +68,8 @@ export const getLatestTodos = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, latest: latestBody, category, limit, offset } = req.body;
+    const { latest: latestBody, category, limit, offset } = req.body;
+    const creatorId = req.user!.userId;
     const latest = latestBody !== false;
     const data = await TodoService.getLatestTodos(creatorId, latest, category, limit, offset);
     successRes(res, 200, { data }, 'Getting latest todos successful');
@@ -82,7 +85,8 @@ export const deleteTodo = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, todoId } = req.body;
+    const { todoId } = req.body;
+    const creatorId = req.user!.userId;
     await TodoService.deleteTodo(creatorId, todoId);
     successRes(res, 200, {}, 'Todo deleted successfully');
   } catch (e: any) {

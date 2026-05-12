@@ -54,9 +54,7 @@ export class AuthService {
 
     await Promise.all(categoryCreationPromises);
 
-    const token = await admin.auth().createCustomToken(id);
-
-    return { data, token };
+    return { data };
   }
 
   static async generateAndSaveTokens(userId: string) {

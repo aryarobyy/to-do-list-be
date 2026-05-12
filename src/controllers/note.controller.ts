@@ -7,15 +7,16 @@ export const postNote = async (
     res: Response,
     next: NextFunction
 ): Promise<void> =>{
-    const { creatorId, title } = req.body;
+    const { title } = req.body;
+    const creatorId = req.user!.userId;
 
-    if (!creatorId || !title) {
-        errorRes(res, 400, "creatorId and title are required");
+    if (!title) {
+        errorRes(res, 400, "title is required");
         return;
     }
 
     try{
-        const data = await NoteService.postNote(req.body);
+        const data = await NoteService.postNote({ ...req.body, creatorId });
         successRes(res, 200, { data }, "Notes created successful");
     } catch (e: any) {
         console.error("Error in postNote:", e);
@@ -29,7 +30,7 @@ export const updateNote = async (
     next: NextFunction
 ): Promise<void> =>{
     try{
-        const data = await NoteService.updateNote(req.body);
+        const data = await NoteService.updateNote({ ...req.body, creatorId: req.user!.userId });
         successRes(res, 200, { data }, "Note updated successful");
     } catch (e: any) {
         console.error("Error in updateNote:", e);
@@ -42,7 +43,8 @@ export const getNoteById = async (
     res: Response,
     next: NextFunction): Promise<void> =>{
     try{
-        const { creatorId, noteId } = req.body;
+        const { noteId } = req.body;
+        const creatorId = req.user!.userId;
         const data = await NoteService.getNoteById(creatorId, noteId);
         successRes(res, 200, { data }, "Getting note successful");
     } catch (e: any) {
@@ -57,7 +59,8 @@ export const getNotesByCreator = async (
     next: NextFunction
     ): Promise<void> => {
     try {
-        const { creatorId, limit, offset } = req.body;
+        const { limit, offset } = req.body;
+        const creatorId = req.user!.userId;
         const data = await NoteService.getNotesByCreator(creatorId, limit, offset);
         successRes(res, 200, { data }, "Getting notes successful");
     } catch (e: any) {
@@ -72,7 +75,8 @@ export const getNotesByTags = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { tags, creatorId, limit, offset } = req.body;
+        const { tags, limit, offset } = req.body;
+        const creatorId = req.user!.userId;
         const data = await NoteService.getNotesByTags(creatorId, tags, limit, offset);
         successRes(res, 200, { data }, "Getting notes successful");
     } catch (e: any) {
@@ -87,7 +91,8 @@ export const deleteNote = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { creatorId, noteId } = req.body;
+        const { noteId } = req.body;
+        const creatorId = req.user!.userId;
         await NoteService.deleteNote(creatorId, noteId);
         successRes(res, 200, {}, "Note deleted successfully");
     } catch (e: any) {

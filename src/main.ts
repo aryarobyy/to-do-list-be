@@ -12,6 +12,7 @@ import path from 'path';
 import categoryRoute from './routes/category.route';
 import todoRouter from './routes/todo.route';
 import subtaskRouter from './routes/subtask.route';
+import { authMiddleware } from './middlewares/auth.middleware';
 
 dotenv.config();
 
@@ -36,6 +37,8 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 app.use(express.static(path.join(__dirname, "public")));
+
+app.use(authMiddleware);
 
 app.use('/auth', authRouter)
 app.use('/user', userRouter)

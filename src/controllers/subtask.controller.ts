@@ -8,7 +8,7 @@ export const createSubtask = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const data = await SubtaskService.createSubtask(req.body);
+    const data = await SubtaskService.createSubtask({ ...req.body, creatorId: req.user!.userId });
     successRes(res, 200, { data }, 'Subtask created successfully');
   } catch (e: any) {
     console.error('Error in createSubtask:', e);
@@ -22,7 +22,7 @@ export const updateSubtask = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const data = await SubtaskService.updateSubtask(req.body);
+    const data = await SubtaskService.updateSubtask({ ...req.body, creatorId: req.user!.userId });
     successRes(res, 200, { data }, 'Subtask updated successfully');
   } catch (e: any) {
     console.error('Error in updateSubtask:', e);
@@ -36,7 +36,8 @@ export const changeSubtaskStatus = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, todoId, subtaskId, isDone } = req.body;
+    const { todoId, subtaskId, isDone } = req.body;
+    const creatorId = req.user!.userId;
     const data = await SubtaskService.changeSubtaskStatus(creatorId, todoId, subtaskId, isDone);
     successRes(res, 200, data, 'Subtask status updated successfully');
   } catch (e: any) {
@@ -51,7 +52,8 @@ export const getSubtaskById = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, todoId, subtaskId } = req.body;
+    const { todoId, subtaskId } = req.body;
+    const creatorId = req.user!.userId;
     const data = await SubtaskService.getSubtaskById(creatorId, todoId, subtaskId);
     successRes(res, 200, { data }, 'Getting subtask successful');
   } catch (e: any) {
@@ -66,7 +68,8 @@ export const getSubtasksByTodo = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, todoId, limit, offset } = req.body;
+    const { todoId, limit, offset } = req.body;
+    const creatorId = req.user!.userId;
     const data = await SubtaskService.getSubtasksByTodo(creatorId, todoId, limit, offset);
     successRes(res, 200, { data }, 'Getting subtasks successful');
   } catch (e: any) {
@@ -81,7 +84,8 @@ export const deleteSubtask = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, todoId, subtaskId } = req.body;
+    const { todoId, subtaskId } = req.body;
+    const creatorId = req.user!.userId;
     await SubtaskService.deleteSubtask(creatorId, todoId, subtaskId);
     successRes(res, 200, {}, 'Subtask deleted successfully');
   } catch (e: any) {

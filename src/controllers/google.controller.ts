@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { v4 } from "uuid";
 import { USER_COLLECTION } from "../core/constants";
 import { admin, adminFirestore } from "../firebase/admin.sdk";
+import { AuthService } from "../services/auth.service";
 import { authRes, errorRes, successRes } from "../utils/response";
 
 export const googleSignIn = async (
@@ -66,9 +67,9 @@ export const googleSignIn = async (
             await Promise.all(categoryCreationPromises);
         }
 
-        const customToken = await admin.auth().createCustomToken(uid);
+        const { accessToken, session } = await AuthService.generateAndSaveTokens(uid);
 
-        authRes(res, 200, { data: userData }, "User signed in successfully", customToken);
+        authRes(res, 200, { data: userData, session }, "User signed in successfully", accessToken);
     } catch (error: any) {
         console.error('Google Sign-In failed:', error.message);
         errorRes(res, 500, "Google Sign-In failed", error.message);
@@ -80,35 +81,11 @@ export const googleSignOut = async (
     res: Response,
     next: NextFunction
 ) => {
-    const { userId } = req.body;
-
-    if (!userId) {
-        errorRes(res, 400, "userId is required");
-        return;
-    }
+    const userId = req.user!.userId;
 
     try {
-        const userSnap = await adminFirestore
-            .collection(USER_COLLECTION)
-            .doc(userId)
-            .get();
-
-        if (!userSnap.exists) {
-            errorRes(res, 404, "User not found");
-            return;
-        }
-
-        try {
-            await admin.auth().revokeRefreshTokens(userId);
-        } catch (e: any) {
-            if (e.code === 'auth/user-not-found') {
-                errorRes(res, 400, "No active session found. User is already logged out");
-                return;
-            }
-            throw e;
-        }
-
-        successRes(res, 200, {}, "Logout successful");
+        const data = await AuthService.logout(userId);
+        successRes(res, 200, { data }, "Logout successful");
     } catch (error: any) {
         console.error('Logout failed:', error.message);
         errorRes(res, 500, "Logout failed", error.message);

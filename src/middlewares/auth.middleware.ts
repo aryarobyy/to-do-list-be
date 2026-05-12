@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyJwtToken } from '../utils/jwt';
+import { isAppJwtPayload, parseBearerToken, verifyJwtToken } from '../utils/jwt';
 import { errorRes } from '../utils/response';
+
+const PUBLIC_ROUTES = new Set([
+  'POST /auth/register',
+  'POST /auth/login',
+  'POST /auth/token',
+  'POST /auth/sign-in',
+]);
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
 
@@ -8,24 +15,26 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  const authHeader = req.headers.authorization;
+  if (PUBLIC_ROUTES.has(`${req.method} ${req.path}`)) {
+    return next();
+  }
 
-  if (!authHeader) {
+  const token = parseBearerToken(req.headers.authorization);
+
+  if (!token) {
     errorRes(res, 401, 'Authorization header is missing');
     return;
   }
 
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') {
-    errorRes(res, 401, 'Invalid authorization header format. Expected "Bearer <token>"');
-    return;
-  }
-
-  const token = parts[1];
-
   try {
     const decoded = verifyJwtToken(token);
-    (req as any).user = decoded;
+
+    if (!isAppJwtPayload(decoded)) {
+      errorRes(res, 401, 'Invalid access token payload');
+      return;
+    }
+
+    req.user = decoded;
     next();
   } catch (err: any) {
     console.error('Auth middleware error:', err.message);

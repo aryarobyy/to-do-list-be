@@ -1,6 +1,5 @@
 import { adminFirestore } from '../firebase/admin.sdk';
 import { USER_COLLECTION } from '../core/constants';
-import { verifyJwtToken } from '../utils/jwt';
 import { sanitizeLimit, sanitizeOffset, stripTimestamps } from '../utils/query';
 
 enum ROLE {
@@ -69,14 +68,7 @@ export class UserService {
     }));
   }
 
-  static async getCurrentUser(token: string) {
-    if (!token) {
-      throw new Error('Token is required');
-    }
-
-    const decoded: any = verifyJwtToken(token);
-    const userId = decoded.userId;
-
+  static async getCurrentUser(userId: string) {
     const userSnap = await adminFirestore
       .collection(USER_COLLECTION)
       .doc(userId)

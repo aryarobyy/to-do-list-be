@@ -8,10 +8,11 @@ export const postCategory = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const { title, noteId, creatorId } = req.body;
+        const { title, noteId } = req.body;
+        const creatorId = req.user!.userId;
 
-        if (!creatorId || !title) {
-          errorRes(res, 400, "creator, title is empty or invalid");
+        if (!title) {
+          errorRes(res, 400, "title is empty or invalid");
           return;
         }
 
@@ -29,12 +30,8 @@ export const getAllCategory = async (
     next: NextFunction
 ): Promise<void> =>{
     try{
-        const { creatorId, limit, offset } = req.body;
-
-        if(!creatorId ){
-          errorRes(res, 400, "creatorId is empty");
-          return;
-        }
+        const { limit, offset } = req.body;
+        const creatorId = req.user!.userId;
 
         const data = await CategoryService.getAllCategory(creatorId, limit, offset);
         successRes(res, 200, { data }, "Category list successful");
@@ -50,10 +47,11 @@ export const updateCategoryTitle = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, oldTitle, newTitle } = req.body;
+    const { oldTitle, newTitle } = req.body;
+    const creatorId = req.user!.userId;
 
-    if (!creatorId || !oldTitle || !newTitle) {
-      errorRes(res, 400, "creatorId, oldTitle, or newTitle missing");
+    if (!oldTitle || !newTitle) {
+      errorRes(res, 400, "oldTitle or newTitle missing");
       return;
     }
 
@@ -70,11 +68,12 @@ export const updateCategory = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { creatorId, title, addNoteId = [], removeNoteId = [] } = req.body;
+  const { title, addNoteId = [], removeNoteId = [] } = req.body;
+  const creatorId = req.user!.userId;
 
   try {
-    if (!creatorId || !title) {
-      errorRes(res, 400, "creatorId and title are required");
+    if (!title) {
+      errorRes(res, 400, "title is required");
       return;
     }
 
@@ -92,10 +91,11 @@ export const getCategoryByTitle = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, title } = req.body;
+    const { title } = req.body;
+    const creatorId = req.user!.userId;
 
-    if (!creatorId || !title) {
-      errorRes(res, 400, "Missing required fields: 'creatorId' or 'title'");
+    if (!title) {
+      errorRes(res, 400, "Missing required field: 'title'");
       return;
     }
 
@@ -113,10 +113,11 @@ export const deleteCategory = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { creatorId, title } = req.body;
+    const { title } = req.body;
+    const creatorId = req.user!.userId;
 
-    if (!creatorId || !title) {
-      errorRes(res, 400, "creatorId and title are required");
+    if (!title) {
+      errorRes(res, 400, "title is required");
       return;
     }
 

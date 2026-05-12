@@ -8,7 +8,7 @@ export const updateUser = async (
   next: NextFunction
 ): Promise<void> =>{
   try{
-    const data = await UserService.updateUser(req.body);
+    const data = await UserService.updateUser({ ...req.body, id: req.user!.userId });
     successRes(res, 200, { data }, "User update successful");
   } catch (e: any) {
     console.error("Error in updateUser:", e);
@@ -21,8 +21,7 @@ export const getUserById = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { id } = req.body;
-      const data = await UserService.getUserById(id as string);
+      const data = await UserService.getUserById(req.user!.userId);
       successRes(res, 200, { data }, "Getting user successful");
     } catch (e: any) {
       console.error("Wrong userId:", e);
@@ -63,8 +62,7 @@ export const getCurrentUser = async (
   res: Response,
   next: NextFunction): Promise<void> =>{
     try{
-      const { token } = req.body;
-      const data = await UserService.getCurrentUser(token);
+      const data = await UserService.getCurrentUser(req.user!.userId);
       successRes(res, 200, { data }, "Getting user successful");
     } catch (e: any) {
       console.error("Error getting current user:", e);

@@ -3,6 +3,7 @@ import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user.service';
 import { authRes, errorRes, successRes } from '../utils/response';
+import { parseBearerToken } from '../utils/jwt';
 
 const auth = getAuth();
 
@@ -29,8 +30,9 @@ export const register = async (
   }
 
   try {
-    const { data, token } = await AuthService.registerUser(req.body);
-    authRes(res, 200, { data }, "User created successfully", token);
+    const { data } = await AuthService.registerUser(req.body);
+    const { accessToken, session } = await AuthService.generateAndSaveTokens(data.id);
+    authRes(res, 200, { data, session }, "User created successfully", accessToken);
   } catch (e: any) {
     console.error("Error in register User:", e);
     errorRes(res, 400, "Error creating user", e.message);
@@ -73,12 +75,7 @@ export const logout = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { id } = req.body;
-
-  if (!id) {
-    errorRes(res, 400, "User id is required");
-    return;
-  }
+  const id = req.user!.userId;
 
   try {
     const data = await AuthService.logout(id);
@@ -94,10 +91,10 @@ export const verifyToken = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { token } = req.body;
+  const token = parseBearerToken(req.headers.authorization);
 
   if (!token) {
-    errorRes(res, 400, "No token provided");
+    errorRes(res, 400, 'Authorization header is missing');
     return;
   }
 
